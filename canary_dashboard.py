@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
+import time
 
 # -----------------------------
 # Config
@@ -20,9 +21,27 @@ def to_weekly_close(df: pd.DataFrame) -> pd.DataFrame:
     """Convert daily OHLCV to weekly close/ohlc."""
     if df.empty:
         return df
-    # Ensure timezone-naive index
+    
+    # 복사본 생성
     df = df.copy()
+    
+    # MultiIndex 처리
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
+    
+    # 컬럼명 정규화
+    df.columns = [col.capitalize() for col in df.columns]
+    
+    # 필요한 컬럼 확인
+    required_cols = ["Open", "High", "Low", "Close", "Volume"]
+    missing = [col for col in required_cols if col not in df.columns]
+    if missing:
+        st.warning(f"⚠️ 누락된 컬럼: {missing}")
+        return pd.DataFrame()
+    
+    # Ensure timezone-naive index
     df.index = pd.to_datetime(df.index).tz_localize(None, ambiguous="NaT", nonexistent="NaT")
+    
     # Weekly (Fri) bars
     ohlc = df.resample("W-FRI").agg({
         "Open": "first",
@@ -184,7 +203,7 @@ def stage_logic(weekly: dict) -> dict:
     elif stage == "YELLOW":
         actions = [
             "사이클/고베타/테마 비중 15%p 축소",
-            "신규 공격적 매수 중단(‘떨어지면 산다’ 일시 중지)",
+            "신규 공격적 매수 중단('떨어지면 산다' 일시 중지)",
             "현금/단기채 비중 +15%p 확보"
         ]
     elif stage == "ORANGE":
@@ -198,14 +217,14 @@ def stage_logic(weekly: dict) -> dict:
         actions = [
             "주식 비중 40~50% 이하로 강제 축소",
             "커버드콜·배당·단기채·현금 중심으로 재편",
-            "배당 재투자(자동DRIP)는 ‘일시 중지’ → 현금 축적",
-            "재진입은 ‘KRE 안정 + RS 회복’ 확인 후 단계적으로"
+            "배당 재투자(자동DRIP)는 '일시 중지' → 현금 축적",
+            "재진입은 'KRE 안정 + RS 회복' 확인 후 단계적으로"
         ]
     elif stage == "RE-ENTRY":
         actions = [
             "현금에서 주식으로 +10%p씩 단계 재진입(주 단위)",
             "1) 시장 ETF → 2) 퀄리티/대형 → 3) 고베타 순서",
-            "커버드콜 비중은 즉시 줄이지 말고 ‘상승 추세 확정’ 후 축소"
+            "커버드콜 비중은 즉시 줄이지 말고 '상승 추세 확정' 후 축소"
         ]
     else:
         actions = ["데이터 상태 확인(티커/네트워크/야후 제한)"]
@@ -248,30 +267,79 @@ def plot_ratio(rs: pd.Series, title: str):
     fig.update_layout(title=title, height=320, margin=dict(l=10, r=10, t=40, b=10))
     return fig
 
-@st.cache_data(ttl=60*30)
-def load_data(tickers, start, end, interval="1d"):
-    data = yf.download(
-        tickers=tickers,
-        start=start,
-        end=end,
-        interval=interval,
-        auto_adjust=False,
-        group_by="ticker",
-        threads=True,
-        progress=False
-    )
-    # Normalize multi-index columns
+def load_ticker_with_retry(ticker, start, end, max_retries=3):
+    """개별 티커를 재시도 로직으로 다운로드"""
+    for attempt in range(max_retries):
+        try:
+            df = yf.download(
+                tickers=ticker,
+                start=start,
+                end=end,
+                interval="1d",
+                auto_adjust=False,
+                progress=False,
+                timeout=15
+            )
+            
+            if df.empty:
+                st.warning(f"⚠️ {ticker}: 데이터가 비어있음 (시도 {attempt+1}/{max_retries})")
+                time.sleep(1)
+                continue
+            
+            # MultiIndex 처리 (단일 티커일 때도 발생 가능)
+            if isinstance(df.columns, pd.MultiIndex):
+                # MultiIndex를 flat하게 변경
+                df.columns = df.columns.get_level_values(0)
+            
+            # 컬럼명 표준화
+            df.columns = [col.capitalize() for col in df.columns]
+            
+            # 데이터 검증
+            if len(df) < 100:
+                st.warning(f"⚠️ {ticker}: 데이터가 너무 적음 ({len(df)}개 행, 시도 {attempt+1}/{max_retries})")
+                time.sleep(1)
+                continue
+            
+            # 필수 컬럼 확인
+            required = ["Open", "High", "Low", "Close", "Volume"]
+            if not all(col in df.columns for col in required):
+                st.warning(f"⚠️ {ticker}: 필수 컬럼 누락 (시도 {attempt+1}/{max_retries})")
+                st.write(f"사용 가능한 컬럼: {list(df.columns)}")
+                time.sleep(1)
+                continue
+            
+            return df.dropna(how="all")
+            
+        except Exception as e:
+            st.warning(f"⚠️ {ticker} 다운로드 실패 (시도 {attempt+1}/{max_retries}): {str(e)}")
+            if attempt < max_retries - 1:
+                time.sleep(2)  # 재시도 전 대기
+            continue
+    
+    st.error(f"❌ {ticker}: {max_retries}번 시도 후 실패")
+    return pd.DataFrame()
+
+def load_data(tickers, start, end):
+    """개선된 데이터 로드 - 개별 티커별로 재시도"""
     out = {}
-    for t in tickers:
-        if isinstance(data.columns, pd.MultiIndex):
-            if t in data.columns.levels[0]:
-                df = data[t].dropna(how="all")
-            else:
-                df = pd.DataFrame()
-        else:
-            # Single ticker case
-            df = data.dropna(how="all")
-        out[t] = df
+    
+    progress_bar = st.progress(0)
+    status_text = st.empty()
+    
+    for idx, ticker in enumerate(tickers):
+        status_text.text(f"📥 {ticker} 데이터 다운로드 중... ({idx+1}/{len(tickers)})")
+        
+        df = load_ticker_with_retry(ticker, start, end, max_retries=3)
+        out[ticker] = df
+        
+        if not df.empty:
+            st.success(f"✅ {ticker}: {len(df)}개 행 로드 완료")
+        
+        progress_bar.progress((idx + 1) / len(tickers))
+    
+    progress_bar.empty()
+    status_text.empty()
+    
     return out
 
 # -----------------------------
@@ -285,11 +353,19 @@ with st.sidebar:
     years = st.slider("조회 기간(년)", min_value=5, max_value=25, value=15, step=1)
     st.caption("주간 200MA 계산을 위해 최소 5년 이상 권장")
     show_debug = st.checkbox("디버그(플래그/계산값 표시)", value=False)
+    
+    st.markdown("---")
+    if st.button("🔄 데이터 새로고침", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
 
 end_date = datetime.today().date() + timedelta(days=1)
 start_date = datetime.today().date() - timedelta(days=365 * years)
 
-daily = load_data(tickers, start=start_date, end=end_date, interval="1d")
+# 데이터 로드 (캐시 없이 매번 새로 로드)
+with st.spinner("📊 Yahoo Finance에서 데이터 다운로드 중..."):
+    daily = load_data(tickers, start=start_date, end=end_date)
+
 weekly = {t: to_weekly_close(daily[t]) for t in tickers}
 
 # Ensure required tickers exist
@@ -297,11 +373,24 @@ for needed in DEFAULT_TICKERS:
     if needed not in weekly:
         weekly[needed] = pd.DataFrame()
 
+# 데이터 상태 체크
+st.divider()
+st.subheader("📊 데이터 상태")
+data_status_cols = st.columns(len(DEFAULT_TICKERS))
+for idx, ticker in enumerate(DEFAULT_TICKERS):
+    with data_status_cols[idx]:
+        df = weekly.get(ticker, pd.DataFrame())
+        if df.empty:
+            st.error(f"❌ {ticker}\n데이터 없음")
+        else:
+            st.success(f"✅ {ticker}\n{len(df)}주")
+
 result = stage_logic(weekly)
 
 # -----------------------------
 # Top summary
 # -----------------------------
+st.divider()
 stage = result["stage"]
 stage_emoji = {
     "GREEN": "🟩",
@@ -439,4 +528,4 @@ if show_debug:
         "kre_higher_low": result.get("kre_hl", None),
     })
 
-st.caption("데이터 출처: Yahoo Finance(yfinance). 주간 규칙은 ‘노이즈 감소’ 목적의 근사이며, 사용자는 최종 의사결정 책임을 가집니다.")
+st.caption("데이터 출처: Yahoo Finance(yfinance). 주간 규칙은 '노이즈 감소' 목적의 근사이며, 사용자는 최종 의사결정 책임을 가집니다.")

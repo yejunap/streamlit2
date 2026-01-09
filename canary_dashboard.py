@@ -398,13 +398,19 @@ if auto_refresh:
         daily = load_data(tickers, start=start_date, end=end_date, silent=True)
         st.rerun()
     else:
-        # 남은 시간 표시
+        # 남은 시간 표시 (rerun 없이)
         mins_remaining = int(hours_remaining * 60)
-        st.info(f"🔄 자동 갱신 활성화 - 다음 갱신까지 {int(hours_remaining)}시간 {mins_remaining % 60}분")
         
-        # 1분마다 체크 (페이지 자동 새로고침)
-        time.sleep(60)
-        st.rerun()
+        # 자동 갱신을 위한 JavaScript 타이머 추가
+        st.markdown(f"""
+        <script>
+        setTimeout(function(){{
+            window.location.reload();
+        }}, 60000);  // 60초 후 자동 새로고침
+        </script>
+        """, unsafe_allow_html=True)
+        
+        st.info(f"🔄 자동 갱신 활성화 - 다음 갱신까지 {int(hours_remaining)}시간 {mins_remaining % 60}분 (1분마다 체크)")
 
 # 데이터 로드
 if 'daily' not in locals():

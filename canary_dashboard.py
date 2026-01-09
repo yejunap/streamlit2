@@ -355,12 +355,42 @@ with st.sidebar:
     show_debug = st.checkbox("디버그(플래그/계산값 표시)", value=False)
     
     st.markdown("---")
-    if st.button("🔄 데이터 새로고침", use_container_width=True):
+    auto_refresh = st.checkbox("🔄 자동 갱신 (4시간)", value=False, 
+                                help="4시간마다 자동으로 데이터 갱신")
+    
+    if st.button("🔄 지금 새로고침", use_container_width=True):
         st.cache_data.clear()
+        if 'last_refresh_time' in st.session_state:
+            del st.session_state.last_refresh_time
         st.rerun()
 
 end_date = datetime.today().date() + timedelta(days=1)
 start_date = datetime.today().date() - timedelta(days=365 * years)
+
+# 자동 갱신 로직
+if auto_refresh:
+    if 'last_refresh_time' not in st.session_state:
+        st.session_state.last_refresh_time = time.time()
+    
+    elapsed = time.time() - st.session_state.last_refresh_time
+    hours_elapsed = elapsed / 3600
+    hours_remaining = max(0, 4 - hours_elapsed)
+    
+    # 4시간이 지났으면 자동 갱신
+    if hours_elapsed >= 4:
+        st.info("⏰ 4시간이 경과하여 자동 갱신합니다...")
+        st.cache_data.clear()
+        st.session_state.last_refresh_time = time.time()
+        time.sleep(1)
+        st.rerun()
+    else:
+        # 남은 시간 표시
+        mins_remaining = int(hours_remaining * 60)
+        st.info(f"🔄 자동 갱신 활성화 - 다음 갱신까지 {int(hours_remaining)}시간 {mins_remaining % 60}분")
+        
+        # 1분마다 체크 (페이지 자동 새로고침)
+        time.sleep(60)
+        st.rerun()
 
 # 데이터 로드 (캐시 없이 매번 새로 로드)
 with st.spinner("📊 Yahoo Finance에서 데이터 다운로드 중..."):

@@ -267,7 +267,7 @@ def plot_ratio(rs: pd.Series, title: str):
     fig.update_layout(title=title, height=320, margin=dict(l=10, r=10, t=40, b=10))
     return fig
 
-def load_ticker_with_retry(ticker, start, end, max_retries=3):
+def load_ticker_with_retry(ticker, start, end, max_retries=3, silent=False):
     """개별 티커를 재시도 로직으로 다운로드"""
     for attempt in range(max_retries):
         try:
@@ -282,7 +282,8 @@ def load_ticker_with_retry(ticker, start, end, max_retries=3):
             )
             
             if df.empty:
-                st.warning(f"⚠️ {ticker}: 데이터가 비어있음 (시도 {attempt+1}/{max_retries})")
+                if not silent:
+                    st.warning(f"⚠️ {ticker}: 데이터가 비어있음 (시도 {attempt+1}/{max_retries})")
                 time.sleep(1)
                 continue
             
@@ -296,49 +297,61 @@ def load_ticker_with_retry(ticker, start, end, max_retries=3):
             
             # 데이터 검증
             if len(df) < 100:
-                st.warning(f"⚠️ {ticker}: 데이터가 너무 적음 ({len(df)}개 행, 시도 {attempt+1}/{max_retries})")
+                if not silent:
+                    st.warning(f"⚠️ {ticker}: 데이터가 너무 적음 ({len(df)}개 행, 시도 {attempt+1}/{max_retries})")
                 time.sleep(1)
                 continue
             
             # 필수 컬럼 확인
             required = ["Open", "High", "Low", "Close", "Volume"]
             if not all(col in df.columns for col in required):
-                st.warning(f"⚠️ {ticker}: 필수 컬럼 누락 (시도 {attempt+1}/{max_retries})")
-                st.write(f"사용 가능한 컬럼: {list(df.columns)}")
+                if not silent:
+                    st.warning(f"⚠️ {ticker}: 필수 컬럼 누락 (시도 {attempt+1}/{max_retries})")
+                    st.write(f"사용 가능한 컬럼: {list(df.columns)}")
                 time.sleep(1)
                 continue
             
             return df.dropna(how="all")
             
         except Exception as e:
-            st.warning(f"⚠️ {ticker} 다운로드 실패 (시도 {attempt+1}/{max_retries}): {str(e)}")
+            if not silent:
+                st.warning(f"⚠️ {ticker} 다운로드 실패 (시도 {attempt+1}/{max_retries}): {str(e)}")
             if attempt < max_retries - 1:
                 time.sleep(2)  # 재시도 전 대기
             continue
     
-    st.error(f"❌ {ticker}: {max_retries}번 시도 후 실패")
+    if not silent:
+        st.error(f"❌ {ticker}: {max_retries}번 시도 후 실패")
     return pd.DataFrame()
 
-def load_data(tickers, start, end):
+def load_data(tickers, start, end, silent=False):
     """개선된 데이터 로드 - 개별 티커별로 재시도"""
     out = {}
     
-    progress_bar = st.progress(0)
-    status_text = st.empty()
-    
-    for idx, ticker in enumerate(tickers):
-        status_text.text(f"📥 {ticker} 데이터 다운로드 중... ({idx+1}/{len(tickers)})")
+    if not silent:
+        # 로딩 UI를 placeholder로 대체
+        loading_placeholder = st.empty()
         
-        df = load_ticker_with_retry(ticker, start, end, max_retries=3)
-        out[ticker] = df
+        with loading_placeholder.container():
+            st.info("📥 데이터 다운로드 중...")
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            
+            for idx, ticker in enumerate(tickers):
+                status_text.text(f"📥 {ticker} 다운로드 중... ({idx+1}/{len(tickers)})")
+                
+                df = load_ticker_with_retry(ticker, start, end, max_retries=3, silent=False)
+                out[ticker] = df
+                
+                progress_bar.progress((idx + 1) / len(tickers))
         
-        if not df.empty:
-            st.success(f"✅ {ticker}: {len(df)}개 행 로드 완료")
-        
-        progress_bar.progress((idx + 1) / len(tickers))
-    
-    progress_bar.empty()
-    status_text.empty()
+        # 로딩 완료 후 placeholder 비우기
+        loading_placeholder.empty()
+    else:
+        # Silent 모드: 메시지 없이 백그라운드 실행
+        for ticker in tickers:
+            df = load_ticker_with_retry(ticker, start, end, max_retries=3, silent=True)
+            out[ticker] = df
     
     return out
 
@@ -381,7 +394,8 @@ if auto_refresh:
         st.info("⏰ 4시간이 경과하여 자동 갱신합니다...")
         st.cache_data.clear()
         st.session_state.last_refresh_time = time.time()
-        time.sleep(1)
+        # Silent 모드로 데이터 로드
+        daily = load_data(tickers, start=start_date, end=end_date, silent=True)
         st.rerun()
     else:
         # 남은 시간 표시
@@ -392,9 +406,9 @@ if auto_refresh:
         time.sleep(60)
         st.rerun()
 
-# 데이터 로드 (캐시 없이 매번 새로 로드)
-with st.spinner("📊 Yahoo Finance에서 데이터 다운로드 중..."):
-    daily = load_data(tickers, start=start_date, end=end_date)
+# 데이터 로드
+if 'daily' not in locals():
+    daily = load_data(tickers, start=start_date, end=end_date, silent=False)
 
 weekly = {t: to_weekly_close(daily[t]) for t in tickers}
 
@@ -407,13 +421,18 @@ for needed in DEFAULT_TICKERS:
 st.divider()
 st.subheader("📊 데이터 상태")
 data_status_cols = st.columns(len(DEFAULT_TICKERS))
+all_loaded = True
 for idx, ticker in enumerate(DEFAULT_TICKERS):
     with data_status_cols[idx]:
         df = weekly.get(ticker, pd.DataFrame())
         if df.empty:
             st.error(f"❌ {ticker}\n데이터 없음")
+            all_loaded = False
         else:
             st.success(f"✅ {ticker}\n{len(df)}주")
+
+if not all_loaded:
+    st.warning("⚠️ 일부 데이터 로드 실패. '지금 새로고침' 버튼을 눌러 재시도하세요.")
 
 result = stage_logic(weekly)
 

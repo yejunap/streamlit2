@@ -5,6 +5,7 @@ import numpy as np
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import time
+import requests
 
 # -----------------------------
 # Config
@@ -112,9 +113,10 @@ def trend_down_2w(close: pd.Series) -> bool:
         return False
     return (s.iloc[-1] < s.iloc[-2]) and (s.iloc[-2] < s.iloc[-3])
 
-def stage_logic(weekly: dict) -> dict:
+def stage_logic(weekly: dict, liquidity_analysis: dict = None) -> dict:
     """
     weekly: dict[ticker] -> weekly OHLCV DF
+    liquidity_analysis: RRP 유동성 분석 결과
     Returns stage + reasons + recommended actions.
     Rule intent (weekly):
       - GREEN: XLY/KRE/ITB 모두 50MA & 200MA 위
@@ -122,10 +124,14 @@ def stage_logic(weekly: dict) -> dict:
       - ORANGE: KRE가 50MA 아래 + 최근 2주 하락(=반등 실패 근사)
       - RED: XLY/KRE/ITB 모두 50MA 아래 (또는 200MA 아래까지 포함해 더 보수적으로)
       - RE-ENTRY: KRE Higher Low + XLY/XLP 상대강도 상승(최근 4주 기울기 +)
+
+    Liquidity overlay:
+      - VERY_LOW 유동성 → 위험도 +1 단계 (GREEN→YELLOW, YELLOW→ORANGE 등)
+      - HIGH 유동성 + RISING 추세 → RE-ENTRY 가능성 강화
     """
     req = ["XLY", "KRE", "ITB", "XLP", "SPY"]
     if any(t not in weekly or weekly[t].empty for t in req):
-        return {"stage": "UNKNOWN", "reasons": ["데이터 부족/로드 실패"], "actions": []}
+        return {"stage": "UNKNOWN", "reasons": ["데이터 부족/로드 실패"], "actions": [], "liquidity": liquidity_analysis}
 
     def calc(t):
         w = weekly[t]
@@ -229,12 +235,38 @@ def stage_logic(weekly: dict) -> dict:
     else:
         actions = ["데이터 상태 확인(티커/네트워크/야후 제한)"]
 
+    # 유동성 오버레이 적용
+    original_stage = stage
+    if liquidity_analysis and liquidity_analysis.get("status") != "UNKNOWN":
+        liq_status = liquidity_analysis.get("status")
+        liq_trend = liquidity_analysis.get("trend")
+
+        # VERY_LOW 유동성 → 위험도 상승
+        if liq_status == "VERY_LOW" and stage == "GREEN":
+            stage = "YELLOW"
+            reasons.append("⚠️ 유동성 매우 낮음 → GREEN에서 YELLOW로 격상 (RRP 고갈)")
+        elif liq_status == "VERY_LOW" and stage == "YELLOW":
+            stage = "ORANGE"
+            reasons.append("⚠️ 유동성 매우 낮음 → YELLOW에서 ORANGE로 격상")
+
+        # LOW 유동성 + FALLING 추세 → 경고
+        if liq_status == "LOW" and liq_trend == "FALLING":
+            if stage == "GREEN":
+                reasons.append("⚠️ 유동성 감소 중 (RRP 하락 추세) - 긴축 신호")
+
+        # HIGH 유동성 + RISING 추세 → RE-ENTRY 강화
+        if liq_status == "HIGH" and liq_trend == "RISING":
+            if stage in ["YELLOW", "GREEN"]:
+                reasons.append("✅ 유동성 풍부 (RRP 상승) - 시장 현금 과잉, 투자 여력↑")
+
     return {
         "stage": stage,
+        "original_stage": original_stage,
         "reasons": reasons,
         "actions": actions,
         "rs_slope_4w": rs_slope_4w,
         "kre_hl": hl,
+        "liquidity": liquidity_analysis,
         "flags": {
             "xly_above50": xly_above50,
             "kre_above50": kre_above50,
@@ -327,24 +359,24 @@ def load_ticker_with_retry(ticker, start, end, max_retries=3, silent=False):
 def load_data(tickers, start, end, silent=False):
     """개선된 데이터 로드 - 개별 티커별로 재시도"""
     out = {}
-    
+
     if not silent:
         # 로딩 UI를 placeholder로 대체
         loading_placeholder = st.empty()
-        
+
         with loading_placeholder.container():
             st.info("📥 데이터 다운로드 중...")
             progress_bar = st.progress(0)
             status_text = st.empty()
-            
+
             for idx, ticker in enumerate(tickers):
                 status_text.text(f"📥 {ticker} 다운로드 중... ({idx+1}/{len(tickers)})")
-                
+
                 df = load_ticker_with_retry(ticker, start, end, max_retries=3, silent=False)
                 out[ticker] = df
-                
+
                 progress_bar.progress((idx + 1) / len(tickers))
-        
+
         # 로딩 완료 후 placeholder 비우기
         loading_placeholder.empty()
     else:
@@ -352,8 +384,127 @@ def load_data(tickers, start, end, silent=False):
         for ticker in tickers:
             df = load_ticker_with_retry(ticker, start, end, max_retries=3, silent=True)
             out[ticker] = df
-    
+
     return out
+
+def load_fred_data(series_id, start_date, end_date, max_retries=3):
+    """
+    FRED API를 사용하여 연준 데이터 로드
+    series_id: 'RRPONTSYD' (Overnight Reverse Repo), 'WLRRAL' (Discount Window)
+    """
+    for attempt in range(max_retries):
+        try:
+            url = f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={series_id}"
+            response = requests.get(url, timeout=15)
+
+            if response.status_code == 200:
+                from io import StringIO
+                df = pd.read_csv(StringIO(response.text))
+                df.columns = ['Date', 'Value']
+                df['Date'] = pd.to_datetime(df['Date'])
+                df = df.set_index('Date')
+                df['Value'] = pd.to_numeric(df['Value'], errors='coerce')
+
+                # 날짜 필터링
+                df = df[(df.index >= pd.to_datetime(start_date)) & (df.index <= pd.to_datetime(end_date))]
+
+                return df.dropna()
+            else:
+                if attempt < max_retries - 1:
+                    time.sleep(1)
+                continue
+        except Exception as e:
+            if attempt < max_retries - 1:
+                time.sleep(1)
+            continue
+
+    return pd.DataFrame()
+
+def analyze_liquidity(rrp_df, window=4):
+    """
+    연준 유동성 분석
+    - RRP 급증: 시장에 현금 과잉 (유동성 풍부)
+    - RRP 급감: 유동성 긴축 가능성
+    """
+    if rrp_df.empty or len(rrp_df) < window + 1:
+        return {
+            "status": "UNKNOWN",
+            "level": np.nan,
+            "change_pct": np.nan,
+            "trend": "UNKNOWN",
+            "signal": "데이터 부족"
+        }
+
+    current = rrp_df['Value'].iloc[-1]
+    prev_avg = rrp_df['Value'].iloc[-window-1:-1].mean()
+    change_pct = (current - prev_avg) / prev_avg if prev_avg > 0 else 0
+
+    # 추세 판단
+    recent_trend = rrp_df['Value'].iloc[-window:].values
+    slope = np.polyfit(range(len(recent_trend)), recent_trend, 1)[0]
+
+    # 시그널 생성
+    if current > 2000:  # 2조 달러 이상 (매우 높음)
+        status = "HIGH"
+        signal = "유동성 과잉 (시장 현금 풍부, 투자처 부족 가능)"
+    elif current > 1000:  # 1조 달러 이상
+        status = "MODERATE"
+        signal = "유동성 양호 (정상 범위)"
+    elif current > 500:  # 5000억 달러 이상
+        status = "LOW"
+        signal = "유동성 감소 (긴축 신호 가능)"
+    else:
+        status = "VERY_LOW"
+        signal = "유동성 매우 낮음 (스트레스 가능성)"
+
+    # 추세 방향
+    if slope > 0:
+        trend = "RISING"
+        trend_signal = "상승 중 (유동성 증가)"
+    elif slope < 0:
+        trend = "FALLING"
+        trend_signal = "하락 중 (유동성 감소)"
+    else:
+        trend = "FLAT"
+        trend_signal = "횡보 중"
+
+    return {
+        "status": status,
+        "level": current,
+        "change_pct": change_pct,
+        "trend": trend,
+        "trend_signal": trend_signal,
+        "signal": signal,
+        "slope": slope
+    }
+
+def plot_liquidity(df, title):
+    """연준 유동성 데이터 시각화"""
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=df.index,
+        y=df['Value'],
+        name="Value",
+        line=dict(color='royalblue', width=2)
+    ))
+
+    # 이동평균 추가
+    ma20 = df['Value'].rolling(20).mean()
+    fig.add_trace(go.Scatter(
+        x=df.index,
+        y=ma20,
+        name="20-day MA",
+        line=dict(color='orange', width=1, dash='dash')
+    ))
+
+    fig.update_layout(
+        title=title,
+        height=350,
+        margin=dict(l=10, r=10, t=40, b=10),
+        xaxis_title="Date",
+        yaxis_title="Billions USD"
+    )
+    return fig
 
 # -----------------------------
 # UI
@@ -423,10 +574,15 @@ for needed in DEFAULT_TICKERS:
     if needed not in weekly:
         weekly[needed] = pd.DataFrame()
 
+# 연준 유동성 데이터 로드
+with st.spinner("📊 연준 유동성 데이터 로드 중 (FRED)..."):
+    rrp_df = load_fred_data("RRPONTSYD", start_date, end_date)
+    liquidity_analysis = analyze_liquidity(rrp_df, window=20)
+
 # 데이터 상태 체크
 st.divider()
 st.subheader("📊 데이터 상태")
-data_status_cols = st.columns(len(DEFAULT_TICKERS))
+data_status_cols = st.columns(len(DEFAULT_TICKERS) + 1)
 all_loaded = True
 for idx, ticker in enumerate(DEFAULT_TICKERS):
     with data_status_cols[idx]:
@@ -437,10 +593,17 @@ for idx, ticker in enumerate(DEFAULT_TICKERS):
         else:
             st.success(f"✅ {ticker}\n{len(df)}주")
 
+# RRP 상태 표시
+with data_status_cols[-1]:
+    if not rrp_df.empty:
+        st.success(f"✅ RRP\n{len(rrp_df)}일")
+    else:
+        st.warning("⚠️ RRP\n데이터 없음")
+
 if not all_loaded:
     st.warning("⚠️ 일부 데이터 로드 실패. '지금 새로고침' 버튼을 눌러 재시도하세요.")
 
-result = stage_logic(weekly)
+result = stage_logic(weekly, liquidity_analysis)
 
 # -----------------------------
 # Top summary
@@ -570,6 +733,72 @@ with c5:
     st.write("- **RE-ENTRY**: KRE Higher Low + XLY/XLP 상대강도 상승(단계적 재진입 조건)")
 
 # -----------------------------
+# 연준 유동성 섹션
+# -----------------------------
+st.divider()
+st.header("💧 연준 유동성 모니터링 (RRP - Reverse Repo)")
+
+if liquidity_analysis and liquidity_analysis.get("status") != "UNKNOWN":
+    liq_col1, liq_col2, liq_col3 = st.columns(3)
+
+    with liq_col1:
+        status_emoji = {
+            "HIGH": "🟢",
+            "MODERATE": "🟡",
+            "LOW": "🟠",
+            "VERY_LOW": "🔴"
+        }.get(liquidity_analysis["status"], "⚪")
+
+        st.metric(
+            "유동성 수준",
+            f"{status_emoji} {liquidity_analysis['status']}",
+            f"${liquidity_analysis['level']:.0f}B"
+        )
+        st.caption(liquidity_analysis["signal"])
+
+    with liq_col2:
+        trend_emoji = {
+            "RISING": "📈",
+            "FALLING": "📉",
+            "FLAT": "➡️"
+        }.get(liquidity_analysis["trend"], "❓")
+
+        st.metric(
+            "추세",
+            f"{trend_emoji} {liquidity_analysis['trend']}",
+            f"{liquidity_analysis['change_pct']*100:.1f}%"
+        )
+        st.caption(liquidity_analysis["trend_signal"])
+
+    with liq_col3:
+        st.subheader("해석")
+        if liquidity_analysis["status"] == "HIGH":
+            st.info("💰 **과잉 유동성**: 연준이 대량의 현금을 흡수 중. 시장에 투자처가 부족할 수 있으나, 급격한 인출 시 유동성 증가로 시장 지지 가능.")
+        elif liquidity_analysis["status"] == "MODERATE":
+            st.success("✅ **정상 범위**: 유동성이 적절한 수준. 큰 변동 없음.")
+        elif liquidity_analysis["status"] == "LOW":
+            st.warning("⚠️ **유동성 감소**: 긴축 신호. 시장 현금 부족 가능성 증가.")
+        else:
+            st.error("🚨 **유동성 고갈**: 심각한 현금 부족. 금융 스트레스 가능성 높음.")
+
+    # RRP 차트
+    st.subheader("📊 Overnight Reverse Repo (RRP) 추이")
+    if not rrp_df.empty:
+        st.plotly_chart(plot_liquidity(rrp_df, "연준 RRP - Overnight Reverse Repo (Billions USD)"), use_container_width=True)
+
+        st.caption("""
+        **RRP(Reverse Repo) 해석 가이드:**
+        - **RRP 상승**: 시장에 현금 과잉 → 연준이 현금 흡수 중 (투자처 부족 신호)
+        - **RRP 하락**: 시장에서 현금 인출 → 유동성이 시장으로 유입 (투자 활성화 가능)
+        - **급격한 하락**: 유동성 긴축 또는 현금 수요 증가 (스트레스 신호 가능)
+        - **장기 고점 유지**: 과잉 유동성 지속 (연준 긴축 효과 제한적)
+        """)
+    else:
+        st.warning("RRP 데이터를 불러올 수 없습니다.")
+else:
+    st.warning("유동성 데이터를 분석할 수 없습니다.")
+
+# -----------------------------
 # Debug
 # -----------------------------
 if show_debug:
@@ -577,10 +806,12 @@ if show_debug:
     st.subheader("🔧 디버그 정보(플래그/계산값)")
     st.json({
         "stage": result["stage"],
+        "original_stage": result.get("original_stage", "N/A"),
         "reasons": result["reasons"],
         "flags": result.get("flags", {}),
         "rs_slope_4w": result.get("rs_slope_4w", None),
         "kre_higher_low": result.get("kre_hl", None),
+        "liquidity": result.get("liquidity", None),
     })
 
-st.caption("데이터 출처: Yahoo Finance(yfinance). 주간 규칙은 '노이즈 감소' 목적의 근사이며, 사용자는 최종 의사결정 책임을 가집니다.")
+st.caption("데이터 출처: Yahoo Finance(yfinance), FRED(연준 데이터). 주간 규칙은 '노이즈 감소' 목적의 근사이며, 사용자는 최종 의사결정 책임을 가집니다.")

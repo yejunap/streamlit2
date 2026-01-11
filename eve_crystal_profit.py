@@ -635,7 +635,7 @@ if profit_data:
             with rec_col1:
                 st.write("**Cost Information**")
                 st.metric("Material Cost (10 runs)", f"{row['material_cost_total']:,.0f} ISK")
-                st.metric("Material Cost (100 runs)", f"{row['material_cost_100_runs']:,.0f} ISK")
+                st.metric("Material Cost (100 runs)", f"{row['material_cost_10_bpc']:,.0f} ISK")
                 st.metric("Material Cost (per unit)", f"{row['material_cost']:,.0f} ISK")
                 st.metric("Sell Price (Sell Order, per unit)", f"{row['sell_price']:,.0f} ISK")
 

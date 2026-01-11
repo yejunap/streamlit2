@@ -47,8 +47,8 @@ CRYSTALS = {
     # Null (Hybrid Ammo) - 1 run당 5,000개 생산 (재료는 1 run 기준 × 10)
     'Null M': {'type_id': 12785, 'materials': {'Morphite': 6, 'R.A.M.- Ammunition Tech': 1, 'Crystalline Carbonide': 240, 'Fullerides': 240}, 'runs': 10, 'output_per_run': 5000},
 
-    # Small Ionic Field Projector II (Rig) - 1 run당 1개 생산, 4 runs = 4개
-    'Small Ionic Field Projector II': {'type_id': 31280, 'materials': {'Miniature Electronics': 6, 'R.A.M.- Electronics': 1, 'Artificial Neural Network': 1, 'Micro Circuit': 1, 'Logic Circuit': 1}, 'runs': 4, 'output_per_run': 1},
+    # Small Ionic Field Projector II (Rig) - 1 run당 1개 생산, 4 runs = 4개 (재료는 1 run 기준 × 4)
+    'Small Ionic Field Projector II': {'type_id': 31280, 'materials': {'Miniature Electronics': 24, 'R.A.M.- Electronics': 4, 'Artificial Neural Network': 4, 'Micro Circuit': 4, 'Logic Circuit': 4}, 'runs': 4, 'output_per_run': 1},
 }
 
 # 재료 타입 ID (Advanced Crystal 제조에 필요한 재료들)
@@ -197,11 +197,13 @@ def calculate_profit(crystal_name, crystal_data, material_prices):
     total_profit = profit_per_unit * total_output
     total_revenue = sell_price * total_output
 
-    # 100 runs (10 생산 라인) 수익 = 400개
-    runs_100 = 100
-    output_100_runs = runs_100 * output_per_run  # 100 × 4 = 400개
-    material_cost_100_runs = material_cost_per_unit * output_100_runs
-    profit_100_runs = profit_per_unit * output_100_runs
+    # 10 BPC (Blueprint Copy) 기준 수익 계산
+    # Crystal: 1 BPC = 10 runs = 40개 → 10 BPC = 100 runs = 400개
+    # Rig: 1 BPC = 4 runs = 4개 → 10 BPC = 40 runs = 40개
+    bpc_count = 10
+    output_10_bpc = bpc_count * total_output  # 10 BPC = 10 × (runs × output_per_run)
+    material_cost_10_bpc = material_cost_per_unit * output_10_bpc
+    profit_10_bpc = profit_per_unit * output_10_bpc
 
     return {
         'crystal_name': crystal_name,
@@ -219,8 +221,9 @@ def calculate_profit(crystal_name, crystal_data, material_prices):
         'sell_volume': crystal_price_data['sell_volume'],
         'lowest_sell': crystal_price_data['lowest_sell'],
         'avg_daily_volume': avg_daily_volume,  # 100일 평균 거래량
-        'profit_100_runs': profit_100_runs,  # 100 runs (400개) 수익
-        'material_cost_100_runs': material_cost_100_runs  # 100 runs 재료 비용
+        'profit_10_bpc': profit_10_bpc,  # 10 BPC 수익 (Crystal: 400개, Rig: 40개)
+        'material_cost_10_bpc': material_cost_10_bpc,  # 10 BPC 재료 비용
+        'output_10_bpc': output_10_bpc  # 10 BPC 생산량
     }
 
 # -----------------------------
@@ -287,6 +290,7 @@ if material_prices:
     st.subheader("🔧 재료 가격 (Jita Sell Order 최저가)")
 
     # 기본 재료 표시
+    st.write("**크리스탈/탄약 제조용 재료:**")
     mat_col1, mat_col2, mat_col3, mat_col4 = st.columns(4)
 
     with mat_col1:
@@ -302,7 +306,7 @@ if material_prices:
             st.metric(
                 "Tungsten Carbide",
                 f"{material_prices['Tungsten Carbide']['lowest_sell']:,.2f} ISK",
-                delta="기본 재료"
+                delta="크리스탈용"
             )
 
     with mat_col3:
@@ -314,23 +318,68 @@ if material_prices:
             )
 
     with mat_col4:
-        if 'R.A.M.- Ammunition Tech' in material_prices:
+        if 'Crystalline Carbonide' in material_prices:
             st.metric(
-                "R.A.M.- Ammo Tech",
-                f"{material_prices['R.A.M.- Ammunition Tech']['lowest_sell']:,.2f} ISK",
-                delta="Tech 2 재료"
+                "Crystalline Carbonide",
+                f"{material_prices['Crystalline Carbonide']['lowest_sell']:,.2f} ISK",
+                delta="탄약용"
             )
 
-    st.write("**XL 크리스탈 제조용 Tech 1 XL 크리스탈:**")
-    xl_col1, xl_col2 = st.columns(2)
-    with xl_col1:
-        for crystal in ['X-Ray XL', 'Multifrequency XL']:
-            if crystal in material_prices:
-                st.text(f"{crystal}: {material_prices[crystal]['lowest_sell']:,.0f} ISK")
-    with xl_col2:
-        for crystal in ['Radio XL', 'Infrared XL']:
-            if crystal in material_prices:
-                st.text(f"{crystal}: {material_prices[crystal]['lowest_sell']:,.0f} ISK")
+    # R.A.M. 재료
+    st.write("**R.A.M. (Robotic Assembly Modules):**")
+    ram_col1, ram_col2 = st.columns(2)
+
+    with ram_col1:
+        if 'R.A.M.- Ammunition Tech' in material_prices:
+            st.metric(
+                "R.A.M.- Ammunition Tech",
+                f"{material_prices['R.A.M.- Ammunition Tech']['lowest_sell']:,.2f} ISK",
+                delta="탄약/크리스탈용"
+            )
+
+    with ram_col2:
+        if 'R.A.M.- Electronics' in material_prices:
+            st.metric(
+                "R.A.M.- Electronics",
+                f"{material_prices['R.A.M.- Electronics']['lowest_sell']:,.2f} ISK",
+                delta="Rig용"
+            )
+
+    # Rig 제조용 재료
+    st.write("**Rig 제조용 재료 (Salvage/PI):**")
+    rig_col1, rig_col2, rig_col3, rig_col4 = st.columns(4)
+
+    with rig_col1:
+        if 'Miniature Electronics' in material_prices:
+            st.metric(
+                "Miniature Electronics",
+                f"{material_prices['Miniature Electronics']['lowest_sell']:,.2f} ISK",
+                delta="PI 재료"
+            )
+
+    with rig_col2:
+        if 'Artificial Neural Network' in material_prices:
+            st.metric(
+                "Artificial Neural Network",
+                f"{material_prices['Artificial Neural Network']['lowest_sell']:,.2f} ISK",
+                delta="Salvage"
+            )
+
+    with rig_col3:
+        if 'Micro Circuit' in material_prices:
+            st.metric(
+                "Micro Circuit",
+                f"{material_prices['Micro Circuit']['lowest_sell']:,.2f} ISK",
+                delta="Salvage"
+            )
+
+    with rig_col4:
+        if 'Logic Circuit' in material_prices:
+            st.metric(
+                "Logic Circuit",
+                f"{material_prices['Logic Circuit']['lowest_sell']:,.2f} ISK",
+                delta="Salvage"
+            )
 
 st.divider()
 
@@ -460,8 +509,8 @@ if profit_data:
     # 크기별 필터
     size_filter = st.multiselect(
         "크기 필터",
-        options=['S (Small)', 'M (Medium)', 'L (Large)', 'XL (Extra Large)'],
-        default=['S (Small)', 'M (Medium)', 'L (Large)', 'XL (Extra Large)']
+        options=['S (Small)', 'M (Medium)', 'L (Large)', 'Rig / Other'],
+        default=['S (Small)', 'M (Medium)', 'Rig / Other']
     )
 
     # 필터 적용
@@ -473,23 +522,33 @@ if profit_data:
         size_codes.append('M')
     if 'L (Large)' in size_filter:
         size_codes.append('L')
-    if 'XL (Extra Large)' in size_filter:
-        size_codes.append('XL')
 
     if size_codes:
-        # Advanced 크리스탈은 "Conflagration S", "Scorch M", "Aurora L", "Gleam XL" 형식
-        filtered_df = filtered_df[filtered_df['crystal_name'].str.contains('|'.join([f' {s}$' for s in size_codes]))]
+        # Advanced 크리스탈은 "Conflagration S", "Scorch M", "Aurora L" 형식
+        # Rig/Other는 크기 코드가 없는 아이템들
+        pattern = '|'.join([f' {s}$' for s in size_codes])
+        if 'Rig / Other' in size_filter:
+            # 크기 코드가 있는 것 OR 크기 코드가 없는 것 (Rig/Other)
+            filtered_df = filtered_df[
+                filtered_df['crystal_name'].str.contains(pattern) |
+                ~filtered_df['crystal_name'].str.contains(r' [SML]$')
+            ]
+        else:
+            filtered_df = filtered_df[filtered_df['crystal_name'].str.contains(pattern)]
+    elif 'Rig / Other' in size_filter:
+        # 오직 Rig/Other만 선택된 경우
+        filtered_df = filtered_df[~filtered_df['crystal_name'].str.contains(r' [SML]$')]
 
     # 테이블 표시
     display_df = filtered_df[[
         'crystal_name', 'material_cost', 'sell_price',
-        'profit_after_fees', 'profit_margin_after_fees', 'profit_100_runs',
+        'profit_after_fees', 'profit_margin_after_fees', 'profit_10_bpc',
         'avg_daily_volume', 'sell_volume'
     ]].copy()
 
     display_df.columns = [
         'Crystal', 'Material Cost (1개)', 'Sell Order Price',
-        'Profit per unit (after fees)', 'Margin %', 'Profit (100 runs = 400개)',
+        'Profit per unit (after fees)', 'Margin %', 'Profit (10 BPC)',
         '100일 평균 거래량/일', 'Sell Volume'
     ]
 
@@ -499,7 +558,7 @@ if profit_data:
             'Sell Order Price': '{:,.0f}',
             'Profit per unit (after fees)': '{:,.0f}',
             'Margin %': '{:.2f}%',
-            'Profit (100 runs = 400개)': '{:,.0f}',
+            'Profit (10 BPC)': '{:,.0f}',
             '100일 평균 거래량/일': '{:,.0f}',
             'Sell Volume': '{:,.0f}'
         }).background_gradient(subset=['Margin %'], cmap='RdYlGn', vmin=-10, vmax=50),
@@ -582,10 +641,10 @@ if profit_data:
                 st.metric("10 runs (40개) 총 수익", f"{row['total_profit']:,.0f} ISK")
 
                 # 100 runs 수익 (수수료 적용)
-                profit_100_runs_after_fees = row['profit_100_runs'] * (1 - (broker_fee + sales_tax) / 100)
+                profit_10_bpc_after_fees = row['profit_10_bpc'] * (1 - (broker_fee + sales_tax) / 100)
                 st.metric(
                     "100 runs (400개) 총 수익",
-                    f"{profit_100_runs_after_fees:,.0f} ISK",
+                    f"{profit_10_bpc_after_fees:,.0f} ISK",
                     delta="10 생산 라인"
                 )
 

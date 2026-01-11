@@ -523,7 +523,8 @@ if profit_data:
         height=600
     )
 
-st.error("Unable to load data. Please check ESI API status.")
+else:
+    st.error("Unable to load data. Please check ESI API status.")
 
 # Footer
 st.divider()

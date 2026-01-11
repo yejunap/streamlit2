@@ -223,25 +223,26 @@ def calculate_profit(crystal_name, crystal_data, material_prices):
         'avg_daily_volume': avg_daily_volume,  # 100일 평균 거래량
         'profit_10_bpc': profit_10_bpc,  # 10 BPC 수익 (Crystal: 400개, Rig: 40개)
         'material_cost_10_bpc': material_cost_10_bpc,  # 10 BPC 재료 비용
-        'output_10_bpc': output_10_bpc  # 10 BPC 생산량
+        'output_10_bpc': output_10_bpc,  # 10 BPC 생산량
+        'output_per_bpc': total_output  # 1 BPC당 생산량 (Crystal: 40, Rig: 4)
     }
 
 # -----------------------------
 # UI
 # -----------------------------
 st.title("💎 EVE Online - Advanced Crystal Manufacturing Profit Calculator")
-st.caption("Advanced Frequency Crystal 제조 수익성 분석 (10 runs = 40개 생산) - 재료는 Jita Sell 최저가")
+st.caption("Advanced Frequency Crystal manufacturing profitability analysis - Material prices from Jita Sell Orders")
 
 # Sidebar
 with st.sidebar:
-    st.header("⚙️ 설정")
+    st.header("⚙️ Settings")
 
-    st.info("**재료 구매 방식:**\nJita Sell Order 최저가 사용\n\n**생산 방식:**\n10 runs = 40개 생산")
+    st.info("**Material Purchase:**\nJita Sell Order (lowest price)\n\n**Production:**\n1 BPC = Crystal: 40 units / Rig: 4 units")
 
     st.markdown("---")
 
-    # 수수료 설정
-    st.subheader("수수료 설정")
+    # Fee Settings
+    st.subheader("Fee Settings")
 
     broker_fee = st.slider(
         "Broker Fee (%)",
@@ -249,7 +250,7 @@ with st.sidebar:
         max_value=5.0,
         value=3.0,
         step=0.1,
-        help="스테이션 거래 수수료"
+        help="Station trading broker fee"
     )
 
     sales_tax = st.slider(
@@ -258,26 +259,26 @@ with st.sidebar:
         max_value=5.0,
         value=2.5,
         step=0.1,
-        help="판매 세금"
+        help="Sales tax"
     )
 
     st.markdown("---")
 
-    if st.button("🔄 데이터 새로고침", use_container_width=True):
+    if st.button("🔄 Refresh Data", use_container_width=True):
         st.cache_data.clear()
         st.rerun()
 
     st.markdown("---")
-    st.caption("**데이터 출처:**")
+    st.caption("**Data Source:**")
     st.caption("EVE Online ESI API")
-    st.caption("갱신 주기: 10분")
+    st.caption("Refresh: Every 10 minutes")
 
 # -----------------------------
 # 데이터 로딩
 # -----------------------------
 st.header("📊 시장 데이터 로딩")
 
-with st.spinner("재료 가격 조회 중..."):
+with st.spinner("Loading material prices..."):
     material_prices = {}
     for material_name, type_id in MATERIALS.items():
         price_data = get_market_price(type_id)
@@ -287,10 +288,10 @@ with st.spinner("재료 가격 조회 중..."):
 
 # 재료 가격 표시
 if material_prices:
-    st.subheader("🔧 재료 가격 (Jita Sell Order 최저가)")
+    st.subheader("🔧 Material Prices (Jita Sell Order - Lowest)")
 
     # 기본 재료 표시
-    st.write("**크리스탈/탄약 제조용 재료:**")
+    st.write("**Crystal/Ammunition Materials:**")
     mat_col1, mat_col2, mat_col3, mat_col4 = st.columns(4)
 
     with mat_col1:
@@ -298,7 +299,7 @@ if material_prices:
             st.metric(
                 "Morphite",
                 f"{material_prices['Morphite']['lowest_sell']:,.2f} ISK",
-                delta="희귀 광물"
+                delta="Rare Mineral"
             )
 
     with mat_col2:
@@ -306,7 +307,7 @@ if material_prices:
             st.metric(
                 "Tungsten Carbide",
                 f"{material_prices['Tungsten Carbide']['lowest_sell']:,.2f} ISK",
-                delta="크리스탈용"
+                delta="For Crystals"
             )
 
     with mat_col3:
@@ -314,7 +315,7 @@ if material_prices:
             st.metric(
                 "Fullerides",
                 f"{material_prices['Fullerides']['lowest_sell']:,.2f} ISK",
-                delta="기본 재료"
+                delta="Base Material"
             )
 
     with mat_col4:
@@ -322,7 +323,7 @@ if material_prices:
             st.metric(
                 "Crystalline Carbonide",
                 f"{material_prices['Crystalline Carbonide']['lowest_sell']:,.2f} ISK",
-                delta="탄약용"
+                delta="For Ammo"
             )
 
     # R.A.M. 재료
@@ -334,7 +335,7 @@ if material_prices:
             st.metric(
                 "R.A.M.- Ammunition Tech",
                 f"{material_prices['R.A.M.- Ammunition Tech']['lowest_sell']:,.2f} ISK",
-                delta="탄약/크리스탈용"
+                delta="Ammo/Crystal"
             )
 
     with ram_col2:
@@ -342,11 +343,11 @@ if material_prices:
             st.metric(
                 "R.A.M.- Electronics",
                 f"{material_prices['R.A.M.- Electronics']['lowest_sell']:,.2f} ISK",
-                delta="Rig용"
+                delta="For Rigs"
             )
 
     # Rig 제조용 재료
-    st.write("**Rig 제조용 재료 (Salvage/PI):**")
+    st.write("**Rig Materials (Salvage/PI):**")
     rig_col1, rig_col2, rig_col3, rig_col4 = st.columns(4)
 
     with rig_col1:
@@ -354,7 +355,7 @@ if material_prices:
             st.metric(
                 "Miniature Electronics",
                 f"{material_prices['Miniature Electronics']['lowest_sell']:,.2f} ISK",
-                delta="PI 재료"
+                delta="PI Material"
             )
 
     with rig_col2:
@@ -415,7 +416,7 @@ if profit_data:
     df = df.sort_values('profit_margin_after_fees', ascending=False)
 
     # 요약 통계
-    st.subheader("📈 수익성 요약")
+    st.subheader("📈 Profitability Summary")
     summary_col1, summary_col2, summary_col3, summary_col4 = st.columns(4)
 
     with summary_col1:
@@ -504,11 +505,11 @@ if profit_data:
     st.plotly_chart(fig_profit, use_container_width=True)
 
     # 상세 테이블
-    st.subheader("📋 상세 수익성 데이터")
+    st.subheader("📋 Detailed Profitability Data")
 
     # 크기별 필터
     size_filter = st.multiselect(
-        "크기 필터",
+        "Size Filter",
         options=['S (Small)', 'M (Medium)', 'L (Large)', 'Rig / Other'],
         default=['S (Small)', 'M (Medium)', 'Rig / Other']
     )
@@ -543,24 +544,30 @@ if profit_data:
     display_df = filtered_df[[
         'crystal_name', 'material_cost', 'sell_price',
         'profit_after_fees', 'profit_margin_after_fees', 'profit_10_bpc',
-        'avg_daily_volume', 'sell_volume'
+        'avg_daily_volume', 'sell_volume', 'output_per_bpc'
     ]].copy()
 
+    # Calculate Days to Sell (Avg Daily Volume / Sell Volume)
+    display_df['days_to_sell'] = display_df['avg_daily_volume'] / display_df['sell_volume']
+    display_df['days_to_sell'] = display_df['days_to_sell'].replace([float('inf'), -float('inf')], 0)
+
     display_df.columns = [
-        'Crystal', 'Material Cost (1개)', 'Sell Order Price',
+        'Item', 'Material Cost (per unit)', 'Sell Order Price',
         'Profit per unit (after fees)', 'Margin %', 'Profit (10 BPC)',
-        '100일 평균 거래량/일', 'Sell Volume'
+        'Avg Daily Volume (100d)', 'Sell Volume', 'Output per BPC', 'Days to Sell'
     ]
 
     st.dataframe(
         display_df.style.format({
-            'Material Cost (1개)': '{:,.0f}',
+            'Material Cost (per unit)': '{:,.0f}',
             'Sell Order Price': '{:,.0f}',
             'Profit per unit (after fees)': '{:,.0f}',
             'Margin %': '{:.2f}%',
             'Profit (10 BPC)': '{:,.0f}',
-            '100일 평균 거래량/일': '{:,.0f}',
-            'Sell Volume': '{:,.0f}'
+            'Avg Daily Volume (100d)': '{:,.0f}',
+            'Sell Volume': '{:,.0f}',
+            'Output per BPC': '{:,.0f}',
+            'Days to Sell': '{:.2f}'
         }).background_gradient(subset=['Margin %'], cmap='RdYlGn', vmin=-10, vmax=50),
         use_container_width=True,
         height=600

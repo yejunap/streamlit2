@@ -46,6 +46,9 @@ CRYSTALS = {
 
     # Null (Hybrid Ammo) - 1 run당 5,000개 생산 (재료는 1 run 기준 × 10)
     'Null M': {'type_id': 12785, 'materials': {'Morphite': 6, 'R.A.M.- Ammunition Tech': 1, 'Crystalline Carbonide': 240, 'Fullerides': 240}, 'runs': 10, 'output_per_run': 5000},
+
+    # Small Ionic Field Projector II (Rig) - 1 run당 1개 생산, 4 runs = 4개
+    'Small Ionic Field Projector II': {'type_id': 31280, 'materials': {'Miniature Electronics': 6, 'R.A.M.- Electronics': 1, 'Artificial Neural Network': 1, 'Micro Circuit': 1, 'Logic Circuit': 1}, 'runs': 4, 'output_per_run': 1},
 }
 
 # 재료 타입 ID (Advanced Crystal 제조에 필요한 재료들)
@@ -53,9 +56,15 @@ MATERIALS = {
     # 기본 재료
     'Morphite': 11399,  # 수정: 16670 -> 11399 (evemarketbrowser.com 확인)
     'R.A.M.- Ammunition Tech': 11476,  # 수정: 11538 -> 11476
+    'R.A.M.- Electronics': 11483,  # Small Ionic Field Projector II 제조용
     'Tungsten Carbide': 16672,
     'Fullerides': 16679,  # 수정: 16673 -> 16679 (evemarketbrowser.com 확인)
     'Crystalline Carbonide': 16670,  # Void/Null 제조용
+    # Salvage Materials (Rig 제조용)
+    'Miniature Electronics': 9842,  # PI material
+    'Artificial Neural Network': 25616,
+    'Micro Circuit': 25618,
+    'Logic Circuit': 25619,
 }
 
 # 주요 거래 허브

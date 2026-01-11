@@ -16,10 +16,10 @@ st.set_page_config(page_title="EVE Online - Crystal Profit Calculator", layout="
 # EVE ESI API Functions
 # -----------------------------
 
-# 레이저 크리스탈 타입 ID 매핑 (Advanced Frequency Crystals - Tech 2)
-# 주의: blueprint 10 runs = 40개 생산 (1 run당 4개 × 10 runs)
-# Void/Null은 1 run당 5,000개 생산 (10 runs = 50,000개)
-# 재료는 1 run 기준 × 10
+# Laser Crystal Type ID Mapping (Advanced Frequency Crystals - Tech 2)
+# Note: blueprint 10 runs = 40 units (4 per run × 10 runs)
+# Void/Null: 1 run = 5,000 units (10 runs = 50,000 units)
+# Materials are per 1 run × 10
 CRYSTALS = {
     # Conflagration (Advanced X-Ray)
     'Conflagration S': {'type_id': 12565, 'materials': {'Morphite': 10, 'R.A.M.- Ammunition Tech': 10, 'Tungsten Carbide': 1080, 'Fullerides': 450}, 'runs': 10, 'output_per_run': 4},
@@ -31,43 +31,43 @@ CRYSTALS = {
     'Scorch M': {'type_id': 12818, 'materials': {'Morphite': 60, 'R.A.M.- Ammunition Tech': 10, 'Tungsten Carbide': 4320, 'Fullerides': 1800}, 'runs': 10, 'output_per_run': 4},
     'Scorch L': {'type_id': 12820, 'materials': {'Morphite': 150, 'R.A.M.- Ammunition Tech': 10, 'Tungsten Carbide': 10800, 'Fullerides': 4500}, 'runs': 10, 'output_per_run': 4},
 
-    # Aurora (Advanced Radio) - Tungsten Carbide가 더 많이 필요
+    # Aurora (Advanced Radio) - Requires more Tungsten Carbide
     'Aurora S': {'type_id': 12559, 'materials': {'Morphite': 10, 'R.A.M.- Ammunition Tech': 10, 'Tungsten Carbide': 2610, 'Fullerides': 450}, 'runs': 10, 'output_per_run': 4},
     'Aurora M': {'type_id': 12822, 'materials': {'Morphite': 60, 'R.A.M.- Ammunition Tech': 10, 'Tungsten Carbide': 10440, 'Fullerides': 1800}, 'runs': 10, 'output_per_run': 4},
     'Aurora L': {'type_id': 12824, 'materials': {'Morphite': 150, 'R.A.M.- Ammunition Tech': 10, 'Tungsten Carbide': 26100, 'Fullerides': 4500}, 'runs': 10, 'output_per_run': 4},
 
-    # Gleam (Advanced Infrared) - Tungsten Carbide가 더 많이 필요
+    # Gleam (Advanced Infrared) - Requires more Tungsten Carbide
     'Gleam S': {'type_id': 12557, 'materials': {'Morphite': 10, 'R.A.M.- Ammunition Tech': 10, 'Tungsten Carbide': 2610, 'Fullerides': 450}, 'runs': 10, 'output_per_run': 4},
     'Gleam M': {'type_id': 12826, 'materials': {'Morphite': 60, 'R.A.M.- Ammunition Tech': 10, 'Tungsten Carbide': 10440, 'Fullerides': 1800}, 'runs': 10, 'output_per_run': 4},
     'Gleam L': {'type_id': 12828, 'materials': {'Morphite': 150, 'R.A.M.- Ammunition Tech': 10, 'Tungsten Carbide': 26100, 'Fullerides': 4500}, 'runs': 10, 'output_per_run': 4},
 
-    # Void (Hybrid Ammo) - 1 run당 5,000개 생산 (재료는 1 run 기준 × 10)
+    # Void (Hybrid Ammo) - 5,000 units per run (materials: 1 run × 10)
     'Void M': {'type_id': 12789, 'materials': {'Morphite': 6, 'R.A.M.- Ammunition Tech': 1, 'Crystalline Carbonide': 240, 'Fullerides': 240}, 'runs': 10, 'output_per_run': 5000},
 
-    # Null (Hybrid Ammo) - 1 run당 5,000개 생산 (재료는 1 run 기준 × 10)
+    # Null (Hybrid Ammo) - 5,000 units per run (materials: 1 run × 10)
     'Null M': {'type_id': 12785, 'materials': {'Morphite': 6, 'R.A.M.- Ammunition Tech': 1, 'Crystalline Carbonide': 240, 'Fullerides': 240}, 'runs': 10, 'output_per_run': 5000},
 
-    # Small Ionic Field Projector II (Rig) - 1 run당 1개 생산, 4 runs = 4개 (재료는 1 run 기준 × 4)
+    # Small Ionic Field Projector II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
     'Small Ionic Field Projector II': {'type_id': 31280, 'materials': {'Miniature Electronics': 24, 'R.A.M.- Electronics': 4, 'Artificial Neural Network': 4, 'Micro Circuit': 4, 'Logic Circuit': 4}, 'runs': 4, 'output_per_run': 1},
 }
 
-# 재료 타입 ID (Advanced Crystal 제조에 필요한 재료들)
+# Material Type IDs (Materials needed for Advanced Crystal manufacturing)
 MATERIALS = {
-    # 기본 재료
-    'Morphite': 11399,  # 수정: 16670 -> 11399 (evemarketbrowser.com 확인)
+    # Base materials
+    'Morphite': 11399,  # 수정: 16670 -> 11399 (verified on evemarketbrowser.com)
     'R.A.M.- Ammunition Tech': 11476,  # 수정: 11538 -> 11476
-    'R.A.M.- Electronics': 11483,  # Small Ionic Field Projector II 제조용
+    'R.A.M.- Electronics': 11483,  # For Small Ionic Field Projector II manufacturing
     'Tungsten Carbide': 16672,
-    'Fullerides': 16679,  # 수정: 16673 -> 16679 (evemarketbrowser.com 확인)
-    'Crystalline Carbonide': 16670,  # Void/Null 제조용
-    # Salvage Materials (Rig 제조용)
+    'Fullerides': 16679,  # 수정: 16673 -> 16679 (verified on evemarketbrowser.com)
+    'Crystalline Carbonide': 16670,  # For Void/Null manufacturing
+    # Salvage Materials (For Rig manufacturing)
     'Miniature Electronics': 9842,  # PI material
     'Artificial Neural Network': 25616,
     'Micro Circuit': 25618,
     'Logic Circuit': 25619,
 }
 
-# 주요 거래 허브
+# Major trading hubs
 TRADE_HUBS = {
     'Jita': 60003760,
     'Amarr': 60008494,
@@ -78,9 +78,9 @@ TRADE_HUBS = {
 
 @st.cache_data(ttl=600)  # 10분 캐시
 def get_market_price(type_id, region_id=10000002):
-    """ESI API로 시장 가격 가져오기 (기본: The Forge - Jita)"""
+    """Get market prices from ESI API (default: The Forge - Jita)"""
     try:
-        # 시장 주문 가져오기
+        # Get market orders
         url = f"https://esi.evetech.net/latest/markets/{region_id}/orders/"
         params = {'datasource': 'tranquility', 'type_id': type_id}
         response = requests.get(url, params=params, timeout=10)
@@ -88,11 +88,11 @@ def get_market_price(type_id, region_id=10000002):
         if response.status_code == 200:
             orders = response.json()
 
-            # 매수/매도 주문 분리
+            # Separate buy/sell orders
             buy_orders = [o for o in orders if o['is_buy_order']]
             sell_orders = [o for o in orders if not o['is_buy_order']]
 
-            # 최고 매수가, 최저 매도가
+            # Highest buy, lowest sell
             highest_buy = max([o['price'] for o in buy_orders]) if buy_orders else 0
             lowest_sell = min([o['price'] for o in sell_orders]) if sell_orders else 0
 
@@ -104,12 +104,12 @@ def get_market_price(type_id, region_id=10000002):
             }
         return None
     except Exception as e:
-        st.warning(f"Type ID {type_id} 가격 조회 실패: {str(e)}")
+        st.warning(f"Failed to get price for Type ID {type_id}: {str(e)}")
         return None
 
 @st.cache_data(ttl=3600)  # 1시간 캐시 (히스토리는 자주 변하지 않음)
 def get_market_history(type_id, region_id=10000002, days=100):
-    """ESI API로 시장 거래 히스토리 가져오기 (100일 평균 거래량)"""
+    """Get market history from ESI API (100-day average volume)"""
     try:
         url = f"https://esi.evetech.net/latest/markets/{region_id}/history/"
         params = {'datasource': 'tranquility', 'type_id': type_id}
@@ -118,7 +118,7 @@ def get_market_history(type_id, region_id=10000002, days=100):
         if response.status_code == 200:
             history = response.json()
 
-            # 최근 100일 데이터만 사용
+            # Use only last 100 days
             recent_history = history[-days:] if len(history) > days else history
 
             if recent_history:
@@ -131,7 +131,7 @@ def get_market_history(type_id, region_id=10000002, days=100):
 
 @st.cache_data(ttl=600)
 def get_station_price(type_id, station_id):
-    """특정 스테이션의 시장 가격"""
+    """Market price at specific station"""
     try:
         url = f"https://esi.evetech.net/latest/markets/structures/{station_id}/"
         params = {'datasource': 'tranquility'}
@@ -153,53 +153,53 @@ def get_station_price(type_id, station_id):
         return None
 
 def calculate_profit(crystal_name, crystal_data, material_prices):
-    """크리스탈 제조 수익 계산 (10 runs 기준, 재료는 항상 Jita Sell 최저가 사용)"""
-    # 재료 비용 계산 (항상 Sell Order 최저가 사용)
-    # 10 runs = 40개 생산 (1 run당 4개 × 10)
+    """Calculate crystal manufacturing profit (10 runs basis, materials always use Jita Sell lowest price)"""
+    # Calculate material cost (always use Sell Order lowest price)
+    # 10 runs = 40 units (4 per run × 10)
     material_cost_total = 0
     material_breakdown = {}
 
     for material, quantity in crystal_data['materials'].items():
         if material in material_prices:
-            price = material_prices[material]['lowest_sell']  # 항상 Sell Order 최저가
+            price = material_prices[material]['lowest_sell']  # Always use Sell Order lowest
             cost = price * quantity
             material_cost_total += cost
             material_breakdown[material] = {'price': price, 'quantity': quantity, 'total': cost}
         else:
-            # 재료 가격을 찾을 수 없으면 None 반환
+            # Return None if material price not found
             return None
 
-    # 10 runs로 생산되는 총 개수
+    # Total units produced in 10 runs
     runs = crystal_data.get('runs', 10)
     output_per_run = crystal_data.get('output_per_run', 4)
-    total_output = runs * output_per_run  # 10 × 4 = 40개
+    total_output = runs * output_per_run  # 10 × 4 = 40 units
 
-    # 1개당 재료 비용
+    # Material cost per unit
     material_cost_per_unit = material_cost_total / total_output
 
-    # 크리스탈 시장 가격 (1개 가격)
+    # Crystal market price (per unit)
     crystal_price_data = get_market_price(crystal_data['type_id'])
 
     if not crystal_price_data:
         return None
 
-    sell_price = crystal_price_data['lowest_sell']  # Jita Sell Order 가격으로 판매
-    buy_order_price = crystal_price_data['highest_buy']  # 즉시 판매 가격 (참고용)
+    sell_price = crystal_price_data['lowest_sell']  # Sell at Jita Sell Order price
+    buy_order_price = crystal_price_data['highest_buy']  # Instant sell price (reference)
 
-    # 100일 평균 거래량
+    # 100-day average volume
     avg_daily_volume = get_market_history(crystal_data['type_id'])
 
-    # 수익 계산 (1개 기준 - Sell Order로 판매)
+    # Profit calculation (per unit - sell via Sell Order)
     profit_per_unit = sell_price - material_cost_per_unit
     profit_margin = (profit_per_unit / material_cost_per_unit * 100) if material_cost_per_unit > 0 else 0
 
-    # 총 수익 (40개 기준 - 10 runs)
+    # Total profit (40 units - 10 runs)
     total_profit = profit_per_unit * total_output
     total_revenue = sell_price * total_output
 
-    # 10 BPC (Blueprint Copy) 기준 수익 계산
-    # Crystal: 1 BPC = 10 runs = 40개 → 10 BPC = 100 runs = 400개
-    # Rig: 1 BPC = 4 runs = 4개 → 10 BPC = 40 runs = 40개
+    # Profit calculation for 10 BPC (Blueprint Copy)
+    # Crystal: 1 BPC = 10 runs = 40 units → 10 BPC = 100 runs = 400 units
+    # Rig: 1 BPC = 4 runs = 4 units → 10 BPC = 40 runs = 40 units
     bpc_count = 10
     output_10_bpc = bpc_count * total_output  # 10 BPC = 10 × (runs × output_per_run)
     material_cost_10_bpc = material_cost_per_unit * output_10_bpc
@@ -211,20 +211,20 @@ def calculate_profit(crystal_name, crystal_data, material_prices):
         'material_cost_total': material_cost_total,
         'material_breakdown': material_breakdown,
         'output_count': total_output,
-        'sell_price': sell_price,  # Sell Order 가격 (1개)
-        'buy_order_price': buy_order_price,  # Buy Order 가격 (즉시 판매, 1개)
-        'total_revenue': total_revenue,  # 총 수익 (40개)
-        'total_profit': total_profit,  # 총 이익 (40개)
+        'sell_price': sell_price,  # Sell Order price (per unit)
+        'buy_order_price': buy_order_price,  # Buy Order price (instant sell, per unit)
+        'total_revenue': total_revenue,  # Total revenue (40 units)
+        'total_profit': total_profit,  # Total profit (40 units)
         'profit': profit_per_unit,
         'profit_margin': profit_margin,
         'buy_volume': crystal_price_data['buy_volume'],
         'sell_volume': crystal_price_data['sell_volume'],
         'lowest_sell': crystal_price_data['lowest_sell'],
-        'avg_daily_volume': avg_daily_volume,  # 100일 평균 거래량
-        'profit_10_bpc': profit_10_bpc,  # 10 BPC 수익 (Crystal: 400개, Rig: 40개)
-        'material_cost_10_bpc': material_cost_10_bpc,  # 10 BPC 재료 비용
-        'output_10_bpc': output_10_bpc,  # 10 BPC 생산량
-        'output_per_bpc': total_output  # 1 BPC당 생산량 (Crystal: 40, Rig: 4)
+        'avg_daily_volume': avg_daily_volume,  # 100-day average volume
+        'profit_10_bpc': profit_10_bpc,  # 10 BPC profit (Crystal: 400 units, Rig: 40 units)
+        'material_cost_10_bpc': material_cost_10_bpc,  # 10 BPC material cost
+        'output_10_bpc': output_10_bpc,  # 10 BPC output
+        'output_per_bpc': total_output  # Output per BPC (Crystal: 40, Rig: 4)
     }
 
 # -----------------------------
@@ -274,9 +274,9 @@ with st.sidebar:
     st.caption("Refresh: Every 10 minutes")
 
 # -----------------------------
-# 데이터 로딩
+# Data Loading
 # -----------------------------
-st.header("📊 시장 데이터 로딩")
+st.header("📊 Loading Market Data")
 
 with st.spinner("Loading material prices..."):
     material_prices = {}
@@ -286,11 +286,11 @@ with st.spinner("Loading material prices..."):
             material_prices[material_name] = price_data
         time.sleep(0.2)  # API rate limit
 
-# 재료 가격 표시
+# Material Prices Display
 if material_prices:
     st.subheader("🔧 Material Prices (Jita Sell Order - Lowest)")
 
-    # 기본 재료 표시
+    # Base materials 표시
     st.write("**Crystal/Ammunition Materials:**")
     mat_col1, mat_col2, mat_col3, mat_col4 = st.columns(4)
 
@@ -326,7 +326,7 @@ if material_prices:
                 delta="For Ammo"
             )
 
-    # R.A.M. 재료
+    # R.A.M. materials
     st.write("**R.A.M. (Robotic Assembly Modules):**")
     ram_col1, ram_col2 = st.columns(2)
 
@@ -346,7 +346,7 @@ if material_prices:
                 delta="For Rigs"
             )
 
-    # Rig 제조용 재료
+    # Rig manufacturing materials
     st.write("**Rig Materials (Salvage/PI):**")
     rig_col1, rig_col2, rig_col3, rig_col4 = st.columns(4)
 
@@ -384,21 +384,21 @@ if material_prices:
 
 st.divider()
 
-# 크리스탈 수익 계산
-st.header("💰 크리스탈 제조 수익성")
+# Crystal Profit Calculation
+st.header("💰 Crystal Manufacturing Profitability")
 
-with st.spinner("크리스탈 시장 데이터 조회 중... (시간이 걸릴 수 있습니다)"):
+with st.spinner("Loading crystal market data... (this may take a while)"):
     profit_data = []
 
     progress_bar = st.progress(0)
     status_text = st.empty()
 
     for idx, (crystal_name, crystal_data) in enumerate(CRYSTALS.items()):
-        status_text.text(f"조회 중: {crystal_name} ({idx+1}/{len(CRYSTALS)})")
+        status_text.text(f"Loading: {crystal_name} ({idx+1}/{len(CRYSTALS)})")
 
         profit_info = calculate_profit(crystal_name, crystal_data, material_prices)
         if profit_info:
-            # 수수료 적용
+            # Apply fees
             total_fees = (broker_fee + sales_tax) / 100
             profit_info['profit_after_fees'] = profit_info['profit'] * (1 - total_fees)
             profit_info['profit_margin_after_fees'] = (profit_info['profit_after_fees'] / profit_info['material_cost'] * 100) if profit_info['material_cost'] > 0 else 0
@@ -415,13 +415,13 @@ if profit_data:
     df = pd.DataFrame(profit_data)
     df = df.sort_values('profit_margin_after_fees', ascending=False)
 
-    # 요약 통계
+    # Summary statistics
     st.subheader("📈 Profitability Summary")
     summary_col1, summary_col2, summary_col3, summary_col4 = st.columns(4)
 
     with summary_col1:
         st.metric(
-            "평균 수익률",
+            "Average Profit Margin",
             f"{df['profit_margin_after_fees'].mean():.2f}%"
         )
 
@@ -429,7 +429,7 @@ if profit_data:
         best_crystal = df.iloc[0]['crystal_name']
         best_margin = df.iloc[0]['profit_margin_after_fees']
         st.metric(
-            "최고 수익률 크리스탈",
+            "Highest Margin Crystal",
             best_crystal,
             f"{best_margin:.2f}%"
         )
@@ -437,21 +437,21 @@ if profit_data:
     with summary_col3:
         best_profit = df.iloc[0]['profit_after_fees']
         st.metric(
-            "최고 단위 수익",
+            "Highest Unit Profit",
             f"{best_profit:,.0f} ISK"
         )
 
     with summary_col4:
         profitable_count = len(df[df['profit_after_fees'] > 0])
         st.metric(
-            "수익 가능 크리스탈",
+            "Profitable Crystals",
             f"{profitable_count}/{len(df)}"
         )
 
     st.divider()
 
-    # 수익률 차트
-    st.subheader("📊 크리스탈별 수익률 비교")
+    # Profit margin chart
+    st.subheader("📊 Profit Margin Comparison")
 
     fig_margin = go.Figure()
 
@@ -479,8 +479,8 @@ if profit_data:
 
     st.plotly_chart(fig_margin, use_container_width=True)
 
-    # 절대 수익 차트
-    st.subheader("💵 크리스탈별 절대 수익 비교 (10 runs = 40개)")
+    # Absolute profit chart
+    st.subheader("💵 Absolute Profit Comparison (10 runs = 40 units)")
 
     fig_profit = go.Figure()
 
@@ -490,7 +490,7 @@ if profit_data:
         text=df['total_profit'].apply(lambda x: f'{x:,.0f}'),
         textposition='outside',
         marker_color='lightblue',
-        name='Total Profit (40개)'
+        name='Total Profit (40 units)'
     ))
 
     fig_profit.update_layout(
@@ -504,17 +504,17 @@ if profit_data:
 
     st.plotly_chart(fig_profit, use_container_width=True)
 
-    # 상세 테이블
+    # Detailed table
     st.subheader("📋 Detailed Profitability Data")
 
-    # 크기별 필터
+    # Size filter
     size_filter = st.multiselect(
         "Size Filter",
         options=['S (Small)', 'M (Medium)', 'L (Large)', 'Rig / Other'],
         default=['S (Small)', 'M (Medium)', 'Rig / Other']
     )
 
-    # 필터 적용
+    # Apply filter
     filtered_df = df.copy()
     size_codes = []
     if 'S (Small)' in size_filter:
@@ -525,11 +525,11 @@ if profit_data:
         size_codes.append('L')
 
     if size_codes:
-        # Advanced 크리스탈은 "Conflagration S", "Scorch M", "Aurora L" 형식
-        # Rig/Other는 크기 코드가 없는 아이템들
+        # Advanced crystals format: "Conflagration S", "Scorch M", "Aurora L"
+        # Rig/Other are items without size codes
         pattern = '|'.join([f' {s}$' for s in size_codes])
         if 'Rig / Other' in size_filter:
-            # 크기 코드가 있는 것 OR 크기 코드가 없는 것 (Rig/Other)
+            # Items with size codes OR without size codes (Rig/Other)
             filtered_df = filtered_df[
                 filtered_df['crystal_name'].str.contains(pattern) |
                 ~filtered_df['crystal_name'].str.contains(r' [SML]$')
@@ -537,10 +537,10 @@ if profit_data:
         else:
             filtered_df = filtered_df[filtered_df['crystal_name'].str.contains(pattern)]
     elif 'Rig / Other' in size_filter:
-        # 오직 Rig/Other만 선택된 경우
+        # Only Rig/Other selected
         filtered_df = filtered_df[~filtered_df['crystal_name'].str.contains(r' [SML]$')]
 
-    # 테이블 표시
+    # Display table
     display_df = filtered_df[[
         'crystal_name', 'material_cost', 'sell_price',
         'profit_after_fees', 'profit_margin_after_fees', 'profit_10_bpc',
@@ -550,12 +550,17 @@ if profit_data:
     # Calculate Days to Sell (Avg Daily Volume / Sell Volume)
     display_df['days_to_sell'] = display_df['avg_daily_volume'] / display_df['sell_volume']
     display_df['days_to_sell'] = display_df['days_to_sell'].replace([float('inf'), -float('inf')], 0)
+    # Sort by Profit (10 BPC) descending
+    display_df = display_df.sort_values(by='Profit (10 BPC)', ascending=False)
 
     display_df.columns = [
         'Item', 'Material Cost (per unit)', 'Sell Order Price',
         'Profit per unit (after fees)', 'Margin %', 'Profit (10 BPC)',
         'Avg Daily Volume (100d)', 'Sell Volume', 'Output per BPC', 'Days to Sell'
     ]
+
+    # Sort by Profit (10 BPC) descending
+    display_df = display_df.sort_values(by='Profit (10 BPC)', ascending=False)
 
     st.dataframe(
         display_df.style.format({
@@ -573,10 +578,10 @@ if profit_data:
         height=600
     )
 
-    # 크기별 비교
-    st.subheader("📏 크기별 수익률 비교")
+    # Size comparison
+    st.subheader("📏 Profit Margin by Size")
 
-    # Advanced 크리스탈은 이름 끝에 "S", "M", "L", "XL"이 있음
+    # Advanced crystals have "S", "M", "L", "XL" at end of name
     df['size'] = df['crystal_name'].str.extract(r' (S|M|L|XL)$')[0]
     size_comparison = df.groupby('size').agg({
         'profit_margin_after_fees': 'mean',
@@ -584,7 +589,7 @@ if profit_data:
         'material_cost': 'mean'
     }).reset_index()
 
-    # 크기 순서 정렬 (S, M, L, XL)
+    # Sort by size order (S, M, L, XL)
     size_order = {'S': 0, 'M': 1, 'L': 2, 'XL': 3}
     size_comparison['size_order'] = size_comparison['size'].map(size_order)
     size_comparison = size_comparison.sort_values('size_order').drop('size_order', axis=1)
@@ -596,7 +601,7 @@ if profit_data:
             size_comparison,
             x='size',
             y='profit_margin_after_fees',
-            title='크기별 평균 수익률',
+            title='Average Profit Margin by Size',
             labels={'size': 'Crystal Size', 'profit_margin_after_fees': 'Avg Profit Margin (%)'},
             color='profit_margin_after_fees',
             color_continuous_scale='RdYlGn'
@@ -609,7 +614,7 @@ if profit_data:
             size_comparison,
             x='size',
             y='profit_after_fees',
-            title='크기별 평균 단위 수익',
+            title='Average Unit Profit by Size',
             labels={'size': 'Crystal Size', 'profit_after_fees': 'Avg Profit (ISK)'},
             color='profit_after_fees',
             color_continuous_scale='Blues'
@@ -617,69 +622,69 @@ if profit_data:
         fig_size_profit.update_layout(height=400)
         st.plotly_chart(fig_size_profit, use_container_width=True)
 
-    # 추천
+    # Recommendations
     st.divider()
-    st.header("💡 제조 추천")
+    st.header("💡 Manufacturing Recommendations")
 
     top_5 = df.head(5)
 
-    st.write("**수익률 기준 Top 5 추천 Advanced 크리스탈:**")
+    st.write("**Top 5 Recommended Crystals by Profit Margin:**")
     for idx, row in top_5.iterrows():
-        with st.expander(f"#{top_5.index.get_loc(idx)+1}: {row['crystal_name']} - {row['profit_margin_after_fees']:.2f}% 수익률"):
+        with st.expander(f"#{top_5.index.get_loc(idx)+1}: {row['crystal_name']} - {row['profit_margin_after_fees']:.2f}% Margin"):
             rec_col1, rec_col2, rec_col3 = st.columns(3)
 
             with rec_col1:
-                st.write("**비용 정보**")
-                st.metric("10 runs 재료 비용", f"{row['material_cost_total']:,.0f} ISK")
-                st.metric("100 runs 재료 비용", f"{row['material_cost_100_runs']:,.0f} ISK")
-                st.metric("1개당 재료 비용", f"{row['material_cost']:,.0f} ISK")
-                st.metric("판매 가격 (Sell Order, 1개)", f"{row['sell_price']:,.0f} ISK")
+                st.write("**Cost Information**")
+                st.metric("Material Cost (10 runs)", f"{row['material_cost_total']:,.0f} ISK")
+                st.metric("Material Cost (100 runs)", f"{row['material_cost_100_runs']:,.0f} ISK")
+                st.metric("Material Cost (per unit)", f"{row['material_cost']:,.0f} ISK")
+                st.metric("Sell Price (Sell Order, per unit)", f"{row['sell_price']:,.0f} ISK")
 
-                # 재료 상세
+                # Material details
                 if 'material_breakdown' in row and row['material_breakdown']:
-                    st.write("**재료 상세 (10 runs):**")
+                    st.write("**Material Details (10 runs):**")
                     for mat, details in row['material_breakdown'].items():
-                        st.caption(f"• {mat}: {details['quantity']}개 × {details['price']:,.0f} = {details['total']:,.0f} ISK")
+                        st.caption(f"• {mat}: {details['quantity']} units × {details['price']:,.0f} = {details['total']:,.0f} ISK")
 
             with rec_col2:
-                st.write("**수익 정보 (Sell Order 기준)**")
-                st.metric("1개당 수익 (수수료 후)", f"{row['profit_after_fees']:,.0f} ISK")
-                st.metric("수익률", f"{row['profit_margin_after_fees']:.2f}%")
-                st.metric("10 runs (40개) 총 수익", f"{row['total_profit']:,.0f} ISK")
+                st.write("**Profit Information (Sell Order basis)**")
+                st.metric("Profit per unit (after fees)", f"{row['profit_after_fees']:,.0f} ISK")
+                st.metric("Profit Margin", f"{row['profit_margin_after_fees']:.2f}%")
+                st.metric("Total Profit (10 runs = 40 units)", f"{row['total_profit']:,.0f} ISK")
 
-                # 100 runs 수익 (수수료 적용)
+                # 100 runs profit (with fees)
                 profit_10_bpc_after_fees = row['profit_10_bpc'] * (1 - (broker_fee + sales_tax) / 100)
                 st.metric(
-                    "100 runs (400개) 총 수익",
+                    "Total Profit (100 runs = 400 units)",
                     f"{profit_10_bpc_after_fees:,.0f} ISK",
-                    delta="10 생산 라인"
+                    delta="10 production lines"
                 )
 
             with rec_col3:
-                st.write("**시장 유동성**")
-                st.metric("100일 평균 거래량/일", f"{row['avg_daily_volume']:,.0f}")
-                st.metric("현재 매도 주문량", f"{row['sell_volume']:,.0f}")
+                st.write("**Market Liquidity**")
+                st.metric("Avg Daily Volume (100d)", f"{row['avg_daily_volume']:,.0f}")
+                st.metric("Current Sell Orders", f"{row['sell_volume']:,.0f}")
 
-                # 시장 유동성 평가 (평균 거래량 기준)
+                # Market liquidity assessment (based on average volume)
                 if row['avg_daily_volume'] > 1000:
-                    st.success("✅ 높은 유동성 (빠른 판매 가능)")
+                    st.success("✅ High Liquidity (Fast Sales)")
                 elif row['avg_daily_volume'] > 500:
-                    st.info("📊 중간 유동성")
+                    st.info("📊 Medium Liquidity")
                 else:
-                    st.warning("⚠️ 낮은 유동성 (판매에 시간 소요)")
+                    st.warning("⚠️ Low Liquidity (Slow Sales)")
 
 else:
-    st.error("데이터를 불러올 수 없습니다. ESI API 상태를 확인해주세요.")
+    st.error("Unable to load data. Please check ESI API status.")
 
 # Footer
 st.divider()
 st.caption("""
-**주의사항:**
-- 이 데이터는 실시간 시장 상황을 반영하며, 빠르게 변동될 수 있습니다
-- 제조는 10 runs 기준 (40개 생산)으로 계산됩니다
-- 실제 제조 시 제조 시간, 블루프린트 연구 레벨, 시설 보너스 등을 고려해야 합니다
-- 대량 거래 시 시장 가격이 움직일 수 있으므로 주의하세요
-- 수수료는 스킬과 스탠딩에 따라 달라질 수 있습니다
+**Important Notes:**
+- This data reflects real-time market conditions and can change rapidly
+- Manufacturing calculated on 10 runs basis (40 units produced)
+- Actual manufacturing should consider manufacturing time, blueprint research level, facility bonuses, etc.
+- Large trades may move market prices - use caution
+- Fees may vary based on skills and standings
 
-**데이터 출처:** EVE Online ESI API (CCP Games)
+**Data Source:** EVE Online ESI API (CCP Games)
 """)

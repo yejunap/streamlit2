@@ -550,6 +550,10 @@ if profit_data:
     # Calculate Days to Sell (Avg Daily Volume / Sell Volume)
     display_df['days_to_sell'] = display_df['avg_daily_volume'] / display_df['sell_volume']
     display_df['days_to_sell'] = display_df['days_to_sell'].replace([float('inf'), -float('inf')], 0)
+    
+    # Sort by profit_10_bpc descending
+    display_df = display_df.sort_values(by='profit_10_bpc', ascending=False)
+    
     display_df.columns = [
         'Item', 'Material Cost (per unit)', 'Sell Order Price',
         'Profit per unit (after fees)', 'Margin %', 'Profit (10 BPC)',

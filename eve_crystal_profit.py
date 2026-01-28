@@ -87,16 +87,19 @@ TRADE_HUBS = {
 }
 
 @st.cache_data(ttl=600)  # 10분 캐시
-def get_market_price(type_id, region_id=10000002):
-    """Get market prices from ESI API (default: The Forge - Jita)"""
+def get_market_price(type_id, region_id=10000002, station_id=60003760):
+    """Get market prices from ESI API filtered by Jita station (60003760)"""
     try:
-        # Get market orders
+        # Get market orders for the region
         url = f"https://esi.evetech.net/latest/markets/{region_id}/orders/"
         params = {'datasource': 'tranquility', 'type_id': type_id}
         response = requests.get(url, params=params, timeout=10)
 
         if response.status_code == 200:
             orders = response.json()
+
+            # Filter orders by Jita station only (ESI uses 'location_id' field)
+            orders = [o for o in orders if o.get('location_id') == station_id]
 
             # Separate buy/sell orders
             buy_orders = [o for o in orders if o['is_buy_order']]

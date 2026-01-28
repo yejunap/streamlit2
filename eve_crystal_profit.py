@@ -49,6 +49,12 @@ CRYSTALS = {
 
     # Small Ionic Field Projector II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
     'Small Ionic Field Projector II': {'type_id': 31280, 'materials': {'Miniature Electronics': 24, 'R.A.M.- Electronics': 4, 'Artificial Neural Network': 4, 'Micro Circuit': 4, 'Logic Circuit': 4}, 'runs': 4, 'output_per_run': 1},
+
+    # Medium Core Defense Field Extender II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
+    'Medium Core Defense Field Extender II': {'type_id': 31796, 'materials': {'R.A.M.- Shield Tech': 4, 'Power Circuit': 24, 'Logic Circuit': 24, 'Enhanced Ward Console': 12}, 'runs': 4, 'output_per_run': 1},
+
+    # Large Core Defense Field Extender II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
+    'Large Core Defense Field Extender II': {'type_id': 26448, 'materials': {'R.A.M.- Shield Tech': 4, 'Power Circuit': 120, 'Logic Circuit': 120, 'Enhanced Ward Console': 48}, 'runs': 4, 'output_per_run': 1},
 }
 
 # Material Type IDs (Materials needed for Advanced Crystal manufacturing)
@@ -65,6 +71,10 @@ MATERIALS = {
     'Artificial Neural Network': 25616,
     'Micro Circuit': 25618,
     'Logic Circuit': 25619,
+    # Shield Rig Materials
+    'R.A.M.- Shield Tech': 11484,
+    'Power Circuit': 25617,
+    'Enhanced Ward Console': 25625,
 }
 
 # Major trading hubs
@@ -379,6 +389,34 @@ if material_prices:
             st.metric(
                 "Logic Circuit",
                 f"{material_prices['Logic Circuit']['lowest_sell']:,.2f} ISK",
+                delta="Salvage"
+            )
+
+    # Shield Rig materials
+    st.write("**Shield Rig Materials:**")
+    shield_col1, shield_col2, shield_col3 = st.columns(3)
+
+    with shield_col1:
+        if 'R.A.M.- Shield Tech' in material_prices:
+            st.metric(
+                "R.A.M.- Shield Tech",
+                f"{material_prices['R.A.M.- Shield Tech']['lowest_sell']:,.2f} ISK",
+                delta="For Shield Rigs"
+            )
+
+    with shield_col2:
+        if 'Power Circuit' in material_prices:
+            st.metric(
+                "Power Circuit",
+                f"{material_prices['Power Circuit']['lowest_sell']:,.2f} ISK",
+                delta="Salvage"
+            )
+
+    with shield_col3:
+        if 'Enhanced Ward Console' in material_prices:
+            st.metric(
+                "Enhanced Ward Console",
+                f"{material_prices['Enhanced Ward Console']['lowest_sell']:,.2f} ISK",
                 delta="Salvage"
             )
 

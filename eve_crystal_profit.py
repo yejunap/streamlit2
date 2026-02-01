@@ -64,6 +64,9 @@ CRYSTALS = {
 
     # Large Core Defense Field Purger II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
     'Large Core Defense Field Purger II': {'type_id': 26450, 'materials': {'R.A.M.- Shield Tech': 4, 'Power Circuit': 120, 'Logic Circuit': 120, 'Enhanced Ward Console': 48}, 'runs': 4, 'output_per_run': 1},
+
+    # Large Capacitor Control Circuit II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
+    'Large Capacitor Control Circuit II': {'type_id': 26374, 'materials': {'R.A.M.- Energy Tech': 4, 'Power Circuit': 80, 'Logic Circuit': 92, 'Capacitor Console': 24}, 'runs': 4, 'output_per_run': 1},
 }
 
 # Material Type IDs (Materials needed for Advanced Crystal manufacturing)
@@ -89,6 +92,9 @@ MATERIALS = {
     'Nanite Compound': 25609,
     'Interface Circuit': 25620,
     'Intact Armor Plates': 25624,
+    # Capacitor Rig Materials
+    'R.A.M.- Energy Tech': 11482,
+    'Capacitor Console': 25622,
 }
 
 # Major trading hubs

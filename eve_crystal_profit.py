@@ -57,10 +57,10 @@ CRYSTALS = {
     'Large Core Defense Field Extender II': {'type_id': 26448, 'materials': {'R.A.M.- Shield Tech': 4, 'Power Circuit': 120, 'Logic Circuit': 120, 'Enhanced Ward Console': 48}, 'runs': 4, 'output_per_run': 1},
 
     # Medium Trimark Armor Pump II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
-    'Medium Trimark Armor Pump II': {'type_id': 31059, 'materials': {'R.A.M.- Armor/Hull Tech': 1, 'Nanite Compound': 3, 'Interface Circuit': 5, 'Intact Armor Plates': 3}, 'runs': 4, 'output_per_run': 1},
+    'Medium Trimark Armor Pump II': {'type_id': 31059, 'materials': {'R.A.M.- Armor/Hull Tech': 4, 'Nanite Compound': 12, 'Interface Circuit': 20, 'Intact Armor Plates': 12}, 'runs': 4, 'output_per_run': 1},
 
     # Large Trimark Armor Pump II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
-    'Large Trimark Armor Pump II': {'type_id': 26302, 'materials': {'R.A.M.- Armor/Hull Tech': 1, 'Nanite Compound': 15, 'Interface Circuit': 23, 'Intact Armor Plates': 20}, 'runs': 4, 'output_per_run': 1},
+    'Large Trimark Armor Pump II': {'type_id': 26302, 'materials': {'R.A.M.- Armor/Hull Tech': 4, 'Nanite Compound': 60, 'Interface Circuit': 92, 'Intact Armor Plates': 80}, 'runs': 4, 'output_per_run': 1},
 }
 
 # Material Type IDs (Materials needed for Advanced Crystal manufacturing)

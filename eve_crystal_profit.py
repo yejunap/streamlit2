@@ -272,6 +272,15 @@ with st.sidebar:
         help="Sales tax"
     )
 
+    installation_cost = st.slider(
+        "Installation Cost (%)",
+        min_value=0.0,
+        max_value=10.0,
+        value=3.0,
+        step=0.1,
+        help="Manufacturing installation cost (% of material cost)"
+    )
+
     st.markdown("---")
 
     if st.button("🔄 Refresh Data", use_container_width=True):
@@ -462,9 +471,21 @@ with st.spinner("Loading crystal market data..."):
 
         profit_info = calculate_profit(crystal_name, crystal_data, material_prices)
         if profit_info:
+            # Calculate installation cost
+            install_cost_rate = installation_cost / 100
+            install_cost_per_unit = profit_info['material_cost'] * install_cost_rate
+            total_cost_per_unit = profit_info['material_cost'] + install_cost_per_unit
+
+            # Calculate profit after all fees
             total_fees = (broker_fee + sales_tax) / 100
-            profit_info['profit_after_fees'] = profit_info['profit'] * (1 - total_fees)
-            profit_info['profit_margin_after_fees'] = (profit_info['profit_after_fees'] / profit_info['material_cost'] * 100) if profit_info['material_cost'] > 0 else 0
+            profit_before_sales_fees = profit_info['sell_price'] - total_cost_per_unit
+            profit_info['profit_after_fees'] = profit_before_sales_fees * (1 - total_fees)
+            profit_info['profit_margin_after_fees'] = (profit_info['profit_after_fees'] / total_cost_per_unit * 100) if total_cost_per_unit > 0 else 0
+            profit_info['installation_cost'] = install_cost_per_unit
+            profit_info['total_cost'] = total_cost_per_unit
+
+            # Update profit_10_bpc with installation cost and fees
+            profit_info['profit_10_bpc'] = profit_info['profit_after_fees'] * profit_info['output_10_bpc']
 
             profit_data.append(profit_info)
 

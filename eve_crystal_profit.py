@@ -61,6 +61,9 @@ CRYSTALS = {
 
     # Large Trimark Armor Pump II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
     'Large Trimark Armor Pump II': {'type_id': 26302, 'materials': {'R.A.M.- Armor/Hull Tech': 4, 'Nanite Compound': 60, 'Interface Circuit': 92, 'Intact Armor Plates': 80}, 'runs': 4, 'output_per_run': 1},
+
+    # Large Core Defense Field Purger II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
+    'Large Core Defense Field Purger II': {'type_id': 26450, 'materials': {'R.A.M.- Shield Tech': 4, 'Power Circuit': 120, 'Logic Circuit': 120, 'Enhanced Ward Console': 48}, 'runs': 4, 'output_per_run': 1},
 }
 
 # Material Type IDs (Materials needed for Advanced Crystal manufacturing)

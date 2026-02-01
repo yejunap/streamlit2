@@ -55,19 +55,25 @@ CRYSTALS = {
 
     # Large Core Defense Field Extender II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
     'Large Core Defense Field Extender II': {'type_id': 26448, 'materials': {'R.A.M.- Shield Tech': 4, 'Power Circuit': 120, 'Logic Circuit': 120, 'Enhanced Ward Console': 48}, 'runs': 4, 'output_per_run': 1},
+
+    # Medium Trimark Armor Pump II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
+    'Medium Trimark Armor Pump II': {'type_id': 31059, 'materials': {'R.A.M.- Armor/Hull Tech': 1, 'Nanite Compound': 3, 'Interface Circuit': 5, 'Intact Armor Plates': 3}, 'runs': 4, 'output_per_run': 1},
+
+    # Large Trimark Armor Pump II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
+    'Large Trimark Armor Pump II': {'type_id': 26302, 'materials': {'R.A.M.- Armor/Hull Tech': 1, 'Nanite Compound': 15, 'Interface Circuit': 23, 'Intact Armor Plates': 20}, 'runs': 4, 'output_per_run': 1},
 }
 
 # Material Type IDs (Materials needed for Advanced Crystal manufacturing)
 MATERIALS = {
     # Base materials
-    'Morphite': 11399,  # 수정: 16670 -> 11399 (verified on evemarketbrowser.com)
-    'R.A.M.- Ammunition Tech': 11476,  # 수정: 11538 -> 11476
-    'R.A.M.- Electronics': 11483,  # For Small Ionic Field Projector II manufacturing
+    'Morphite': 11399,
+    'R.A.M.- Ammunition Tech': 11476,
+    'R.A.M.- Electronics': 11483,
     'Tungsten Carbide': 16672,
-    'Fullerides': 16679,  # 수정: 16673 -> 16679 (verified on evemarketbrowser.com)
-    'Crystalline Carbonide': 16670,  # For Void/Null manufacturing
+    'Fullerides': 16679,
+    'Crystalline Carbonide': 16670,
     # Salvage Materials (For Rig manufacturing)
-    'Miniature Electronics': 9842,  # PI material
+    'Miniature Electronics': 9842,
     'Artificial Neural Network': 25616,
     'Micro Circuit': 25618,
     'Logic Circuit': 25619,
@@ -75,6 +81,11 @@ MATERIALS = {
     'R.A.M.- Shield Tech': 11484,
     'Power Circuit': 25617,
     'Enhanced Ward Console': 25625,
+    # Armor Rig Materials
+    'R.A.M.- Armor/Hull Tech': 11475,
+    'Nanite Compound': 25609,
+    'Interface Circuit': 25620,
+    'Intact Armor Plates': 25624,
 }
 
 # Major trading hubs
@@ -86,11 +97,10 @@ TRADE_HUBS = {
     'Hek': 60005686
 }
 
-@st.cache_data(ttl=600)  # 10분 캐시
+@st.cache_data(ttl=600)
 def get_market_price(type_id, region_id=10000002, station_id=60003760):
-    """Get market prices from ESI API filtered by Jita station (60003760)"""
+    """Get market prices from ESI API filtered by Jita station"""
     try:
-        # Get market orders for the region
         url = f"https://esi.evetech.net/latest/markets/{region_id}/orders/"
         params = {'datasource': 'tranquility', 'type_id': type_id}
         response = requests.get(url, params=params, timeout=10)
@@ -98,7 +108,7 @@ def get_market_price(type_id, region_id=10000002, station_id=60003760):
         if response.status_code == 200:
             orders = response.json()
 
-            # Filter orders by Jita station only (ESI uses 'location_id' field)
+            # Filter orders by Jita station only
             orders = [o for o in orders if o.get('location_id') == station_id]
 
             # Separate buy/sell orders
@@ -120,7 +130,7 @@ def get_market_price(type_id, region_id=10000002, station_id=60003760):
         st.warning(f"Failed to get price for Type ID {type_id}: {str(e)}")
         return None
 
-@st.cache_data(ttl=3600)  # 1시간 캐시 (히스토리는 자주 변하지 않음)
+@st.cache_data(ttl=3600)
 def get_market_history(type_id, region_id=10000002, days=100):
     """Get market history from ESI API (100-day average volume)"""
     try:
@@ -166,55 +176,43 @@ def get_station_price(type_id, station_id):
         return None
 
 def calculate_profit(crystal_name, crystal_data, material_prices):
-    """Calculate crystal manufacturing profit (10 runs basis, materials always use Jita Sell lowest price)"""
-    # Calculate material cost (always use Sell Order lowest price)
-    # 10 runs = 40 units (4 per run × 10)
+    """Calculate crystal manufacturing profit"""
     material_cost_total = 0
     material_breakdown = {}
 
     for material, quantity in crystal_data['materials'].items():
         if material in material_prices:
-            price = material_prices[material]['lowest_sell']  # Always use Sell Order lowest
+            price = material_prices[material]['lowest_sell']
             cost = price * quantity
             material_cost_total += cost
             material_breakdown[material] = {'price': price, 'quantity': quantity, 'total': cost}
         else:
-            # Return None if material price not found
             return None
 
-    # Total units produced in 10 runs
     runs = crystal_data.get('runs', 10)
     output_per_run = crystal_data.get('output_per_run', 4)
-    total_output = runs * output_per_run  # 10 × 4 = 40 units
+    total_output = runs * output_per_run
 
-    # Material cost per unit
     material_cost_per_unit = material_cost_total / total_output
 
-    # Crystal market price (per unit)
     crystal_price_data = get_market_price(crystal_data['type_id'])
 
     if not crystal_price_data:
         return None
 
-    sell_price = crystal_price_data['lowest_sell']  # Sell at Jita Sell Order price
-    buy_order_price = crystal_price_data['highest_buy']  # Instant sell price (reference)
+    sell_price = crystal_price_data['lowest_sell']
+    buy_order_price = crystal_price_data['highest_buy']
 
-    # 100-day average volume
     avg_daily_volume = get_market_history(crystal_data['type_id'])
 
-    # Profit calculation (per unit - sell via Sell Order)
     profit_per_unit = sell_price - material_cost_per_unit
     profit_margin = (profit_per_unit / material_cost_per_unit * 100) if material_cost_per_unit > 0 else 0
 
-    # Total profit (40 units - 10 runs)
     total_profit = profit_per_unit * total_output
     total_revenue = sell_price * total_output
 
-    # Profit calculation for 10 BPC (Blueprint Copy)
-    # Crystal: 1 BPC = 10 runs = 40 units → 10 BPC = 100 runs = 400 units
-    # Rig: 1 BPC = 4 runs = 4 units → 10 BPC = 40 runs = 40 units
     bpc_count = 10
-    output_10_bpc = bpc_count * total_output  # 10 BPC = 10 × (runs × output_per_run)
+    output_10_bpc = bpc_count * total_output
     material_cost_10_bpc = material_cost_per_unit * output_10_bpc
     profit_10_bpc = profit_per_unit * output_10_bpc
 
@@ -224,37 +222,33 @@ def calculate_profit(crystal_name, crystal_data, material_prices):
         'material_cost_total': material_cost_total,
         'material_breakdown': material_breakdown,
         'output_count': total_output,
-        'sell_price': sell_price,  # Sell Order price (per unit)
-        'buy_order_price': buy_order_price,  # Buy Order price (instant sell, per unit)
-        'total_revenue': total_revenue,  # Total revenue (40 units)
-        'total_profit': total_profit,  # Total profit (40 units)
+        'sell_price': sell_price,
+        'buy_order_price': buy_order_price,
+        'total_revenue': total_revenue,
+        'total_profit': total_profit,
         'profit': profit_per_unit,
         'profit_margin': profit_margin,
         'buy_volume': crystal_price_data['buy_volume'],
         'sell_volume': crystal_price_data['sell_volume'],
         'lowest_sell': crystal_price_data['lowest_sell'],
-        'avg_daily_volume': avg_daily_volume,  # 100-day average volume
-        'profit_10_bpc': profit_10_bpc,  # 10 BPC profit (Crystal: 400 units, Rig: 40 units)
-        'material_cost_10_bpc': material_cost_10_bpc,  # 10 BPC material cost
-        'output_10_bpc': output_10_bpc,  # 10 BPC output
-        'output_per_bpc': total_output  # Output per BPC (Crystal: 40, Rig: 4)
+        'avg_daily_volume': avg_daily_volume,
+        'profit_10_bpc': profit_10_bpc,
+        'material_cost_10_bpc': material_cost_10_bpc,
+        'output_10_bpc': output_10_bpc,
+        'output_per_bpc': total_output
     }
 
-# -----------------------------
 # UI
-# -----------------------------
 st.title("💎 EVE Online - Advanced Crystal Manufacturing Profit Calculator")
-st.caption("Advanced Frequency Crystal manufacturing profitability analysis - Material prices from Jita Sell Orders")
+st.caption("Advanced Frequency Crystal manufacturing profitability analysis")
 
-# Sidebar
 with st.sidebar:
     st.header("⚙️ Settings")
 
-    st.info("**Material Purchase:**\nJita Sell Order (lowest price)\n\n**Production:**\n1 BPC = Crystal: 40 units / Rig: 4 units")
+    st.info("Material Purchase: Jita Sell Order (lowest price)\n\nProduction: 1 BPC = 40 units / Rig: 4 units")
 
     st.markdown("---")
 
-    # Fee Settings
     st.subheader("Fee Settings")
 
     broker_fee = st.slider(
@@ -282,13 +276,10 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    st.caption("**Data Source:**")
-    st.caption("EVE Online ESI API")
+    st.caption("Data Source: EVE Online ESI API")
     st.caption("Refresh: Every 10 minutes")
 
-# -----------------------------
 # Data Loading
-# -----------------------------
 st.header("📊 Loading Market Data")
 
 with st.spinner("Loading material prices..."):
@@ -297,13 +288,11 @@ with st.spinner("Loading material prices..."):
         price_data = get_market_price(type_id)
         if price_data:
             material_prices[material_name] = price_data
-        time.sleep(0.2)  # API rate limit
+        time.sleep(0.2)
 
-# Material Prices Display
 if material_prices:
     st.subheader("🔧 Material Prices (Jita Sell Order - Lowest)")
 
-    # Base materials 표시
     st.write("**Crystal/Ammunition Materials:**")
     mat_col1, mat_col2, mat_col3, mat_col4 = st.columns(4)
 
@@ -339,7 +328,6 @@ if material_prices:
                 delta="For Ammo"
             )
 
-    # R.A.M. materials
     st.write("**R.A.M. (Robotic Assembly Modules):**")
     ram_col1, ram_col2 = st.columns(2)
 
@@ -359,7 +347,6 @@ if material_prices:
                 delta="For Rigs"
             )
 
-    # Rig manufacturing materials
     st.write("**Rig Materials (Salvage/PI):**")
     rig_col1, rig_col2, rig_col3, rig_col4 = st.columns(4)
 
@@ -395,7 +382,6 @@ if material_prices:
                 delta="Salvage"
             )
 
-    # Shield Rig materials
     st.write("**Shield Rig Materials:**")
     shield_col1, shield_col2, shield_col3 = st.columns(3)
 
@@ -423,12 +409,46 @@ if material_prices:
                 delta="Salvage"
             )
 
+    st.write("**Armor Rig Materials:**")
+    armor_col1, armor_col2, armor_col3, armor_col4 = st.columns(4)
+
+    with armor_col1:
+        if 'R.A.M.- Armor/Hull Tech' in material_prices:
+            st.metric(
+                "R.A.M.- Armor/Hull Tech",
+                f"{material_prices['R.A.M.- Armor/Hull Tech']['lowest_sell']:,.2f} ISK",
+                delta="For Armor Rigs"
+            )
+
+    with armor_col2:
+        if 'Nanite Compound' in material_prices:
+            st.metric(
+                "Nanite Compound",
+                f"{material_prices['Nanite Compound']['lowest_sell']:,.2f} ISK",
+                delta="Salvage"
+            )
+
+    with armor_col3:
+        if 'Interface Circuit' in material_prices:
+            st.metric(
+                "Interface Circuit",
+                f"{material_prices['Interface Circuit']['lowest_sell']:,.2f} ISK",
+                delta="Salvage"
+            )
+
+    with armor_col4:
+        if 'Intact Armor Plates' in material_prices:
+            st.metric(
+                "Intact Armor Plates",
+                f"{material_prices['Intact Armor Plates']['lowest_sell']:,.2f} ISK",
+                delta="Salvage"
+            )
+
 st.divider()
 
-# Crystal Profit Calculation
 st.header("💰 Crystal Manufacturing Profitability")
 
-with st.spinner("Loading crystal market data... (this may take a while)"):
+with st.spinner("Loading crystal market data..."):
     profit_data = []
 
     progress_bar = st.progress(0)
@@ -439,7 +459,6 @@ with st.spinner("Loading crystal market data... (this may take a while)"):
 
         profit_info = calculate_profit(crystal_name, crystal_data, material_prices)
         if profit_info:
-            # Apply fees
             total_fees = (broker_fee + sales_tax) / 100
             profit_info['profit_after_fees'] = profit_info['profit'] * (1 - total_fees)
             profit_info['profit_margin_after_fees'] = (profit_info['profit_after_fees'] / profit_info['material_cost'] * 100) if profit_info['material_cost'] > 0 else 0
@@ -447,7 +466,7 @@ with st.spinner("Loading crystal market data... (this may take a while)"):
             profit_data.append(profit_info)
 
         progress_bar.progress((idx + 1) / len(CRYSTALS))
-        time.sleep(0.3)  # API rate limit
+        time.sleep(0.3)
 
     progress_bar.empty()
     status_text.empty()
@@ -456,7 +475,6 @@ if profit_data:
     df = pd.DataFrame(profit_data)
     df = df.sort_values('profit_margin_after_fees', ascending=False)
 
-    # Summary statistics
     st.subheader("📈 Profitability Summary")
     summary_col1, summary_col2, summary_col3, summary_col4 = st.columns(4)
 
@@ -491,17 +509,14 @@ if profit_data:
 
     st.divider()
 
-    # Detailed table
     st.subheader("📋 Detailed Profitability Data")
 
-    # Size filter
     size_filter = st.multiselect(
         "Size Filter",
         options=['S (Small)', 'M (Medium)', 'L (Large)', 'Rig / Other'],
         default=['S (Small)', 'M (Medium)', 'Rig / Other']
     )
 
-    # Apply filter
     filtered_df = df.copy()
     size_codes = []
     if 'S (Small)' in size_filter:
@@ -512,11 +527,8 @@ if profit_data:
         size_codes.append('L')
 
     if size_codes:
-        # Advanced crystals format: "Conflagration S", "Scorch M", "Aurora L"
-        # Rig/Other are items without size codes
         pattern = '|'.join([f' {s}$' for s in size_codes])
         if 'Rig / Other' in size_filter:
-            # Items with size codes OR without size codes (Rig/Other)
             filtered_df = filtered_df[
                 filtered_df['crystal_name'].str.contains(pattern) |
                 ~filtered_df['crystal_name'].str.contains(r' [SML]$')
@@ -524,29 +536,24 @@ if profit_data:
         else:
             filtered_df = filtered_df[filtered_df['crystal_name'].str.contains(pattern)]
     elif 'Rig / Other' in size_filter:
-        # Only Rig/Other selected
         filtered_df = filtered_df[~filtered_df['crystal_name'].str.contains(r' [SML]$')]
 
-    # Display table
     display_df = filtered_df[[
         'crystal_name', 'material_cost', 'sell_price',
         'profit_after_fees', 'profit_margin_after_fees', 'profit_10_bpc',
         'avg_daily_volume', 'sell_volume', 'output_per_bpc'
     ]].copy()
 
-    # Calculate Days to Sell (Avg Daily Volume / Sell Volume)
     display_df['days_to_sell'] = display_df['avg_daily_volume'] / display_df['sell_volume']
     display_df['days_to_sell'] = display_df['days_to_sell'].replace([float('inf'), -float('inf')], 0)
-    
-    # Sort by profit_10_bpc descending
+
     display_df = display_df.sort_values(by='profit_10_bpc', ascending=False)
-    
+
     display_df.columns = [
         'Item', 'Material Cost (per unit)', 'Sell Order Price',
         'Profit per unit (after fees)', 'Margin %', 'Profit (10 BPC)',
         'Avg Daily Volume (100d)', 'Sell Volume', 'Output per BPC', 'Days to Sell'
     ]
-
 
     st.dataframe(
         display_df.style.format({
@@ -567,15 +574,14 @@ if profit_data:
 else:
     st.error("Unable to load data. Please check ESI API status.")
 
-# Footer
 st.divider()
 st.caption("""
-**Important Notes:**
-- This data reflects real-time market conditions and can change rapidly
-- Manufacturing calculated on 10 runs basis (40 units produced)
-- Actual manufacturing should consider manufacturing time, blueprint research level, facility bonuses, etc.
-- Large trades may move market prices - use caution
-- Fees may vary based on skills and standings
+Important Notes:
+- Real-time market conditions constantly change
+- Manufacturing uses 10 runs basis (40 units produced)
+- Consider manufacturing time, blueprint research, facility bonuses
+- Large trades may move market prices
+- Fees vary by skills and standings
 
-**Data Source:** EVE Online ESI API (CCP Games)
+Data Source: EVE Online ESI API (CCP Games)
 """)

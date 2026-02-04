@@ -92,6 +92,42 @@ CRYSTALS = {
 
     # Large Core Defense Operational Solidifier II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
     'Large Core Defense Operational Solidifier II': {'type_id': 26452, 'materials': {'R.A.M.- Shield Tech': 4, 'Power Circuit': 120, 'Logic Circuit': 120, 'Enhanced Ward Console': 48}, 'runs': 4, 'output_per_run': 1},
+
+    # Large Transverse Bulkhead II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
+    'Large Transverse Bulkhead II': {'type_id': 33900, 'materials': {'R.A.M.- Armor/Hull Tech': 4, 'Nanite Compound': 92, 'Single-crystal Superalloy I-beam': 80, 'Interface Circuit': 60}, 'runs': 4, 'output_per_run': 1},
+
+    # Medium Transverse Bulkhead II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
+    'Medium Transverse Bulkhead II': {'type_id': 33896, 'materials': {'R.A.M.- Armor/Hull Tech': 4, 'Nanite Compound': 20, 'Single-crystal Superalloy I-beam': 12, 'Interface Circuit': 12}, 'runs': 4, 'output_per_run': 1},
+
+    # Small Transverse Bulkhead II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
+    'Small Transverse Bulkhead II': {'type_id': 33892, 'materials': {'R.A.M.- Armor/Hull Tech': 4, 'Nanite Compound': 4, 'Single-crystal Superalloy I-beam': 4, 'Interface Circuit': 4}, 'runs': 4, 'output_per_run': 1},
+
+    # Large Ancillary Current Router II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
+    'Large Ancillary Current Router II': {'type_id': 26370, 'materials': {'R.A.M.- Energy Tech': 4, 'Power Conduit': 72, 'Power Circuit': 284, 'Logic Circuit': 272}, 'runs': 4, 'output_per_run': 1},
+
+    # Medium Ancillary Current Router II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
+    'Medium Ancillary Current Router II': {'type_id': 31366, 'materials': {'R.A.M.- Energy Tech': 4, 'Power Conduit': 12, 'Power Circuit': 56, 'Logic Circuit': 56}, 'runs': 4, 'output_per_run': 1},
+
+    # Small Ancillary Current Router II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
+    'Small Ancillary Current Router II': {'type_id': 31364, 'materials': {'R.A.M.- Energy Tech': 4, 'Power Conduit': 4, 'Power Circuit': 4, 'Logic Circuit': 4}, 'runs': 4, 'output_per_run': 1},
+
+    # Large EM Shield Reinforcer II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
+    'Large EM Shield Reinforcer II': {'type_id': 26436, 'materials': {'R.A.M.- Shield Tech': 4, 'Intact Shield Emitter': 48, 'Micro Circuit': 80, 'Interface Circuit': 92}, 'runs': 4, 'output_per_run': 1},
+
+    # Medium EM Shield Reinforcer II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
+    'Medium EM Shield Reinforcer II': {'type_id': 31724, 'materials': {'R.A.M.- Shield Tech': 4, 'Intact Shield Emitter': 12, 'Micro Circuit': 20, 'Interface Circuit': 20}, 'runs': 4, 'output_per_run': 1},
+
+    # Small EM Shield Reinforcer II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
+    'Small EM Shield Reinforcer II': {'type_id': 31722, 'materials': {'R.A.M.- Shield Tech': 4, 'Intact Shield Emitter': 4, 'Micro Circuit': 4, 'Interface Circuit': 4}, 'runs': 4, 'output_per_run': 1},
+
+    # Large Thermal Shield Reinforcer II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
+    'Large Thermal Shield Reinforcer II': {'type_id': 26442, 'materials': {'R.A.M.- Shield Tech': 4, 'Intact Shield Emitter': 48, 'Micro Circuit': 80, 'Interface Circuit': 92}, 'runs': 4, 'output_per_run': 1},
+
+    # Medium Thermal Shield Reinforcer II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
+    'Medium Thermal Shield Reinforcer II': {'type_id': 31760, 'materials': {'R.A.M.- Shield Tech': 4, 'Intact Shield Emitter': 12, 'Micro Circuit': 20, 'Interface Circuit': 20}, 'runs': 4, 'output_per_run': 1},
+
+    # Small Thermal Shield Reinforcer II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
+    'Small Thermal Shield Reinforcer II': {'type_id': 31758, 'materials': {'R.A.M.- Shield Tech': 4, 'Intact Shield Emitter': 4, 'Micro Circuit': 4, 'Interface Circuit': 4}, 'runs': 4, 'output_per_run': 1},
 }
 
 # Material Type IDs (Materials needed for Advanced Crystal manufacturing)
@@ -120,6 +156,12 @@ MATERIALS = {
     # Capacitor Rig Materials
     'R.A.M.- Energy Tech': 11482,
     'Capacitor Console': 25622,
+    # Engineering Rig Materials
+    'Power Conduit': 25613,
+    # Hull/Bulkhead Rig Materials
+    'Single-crystal Superalloy I-beam': 25614,
+    # Shield Resistance Rig Materials
+    'Intact Shield Emitter': 25608,
 }
 
 # Major trading hubs

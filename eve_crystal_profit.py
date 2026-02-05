@@ -549,13 +549,14 @@ with st.spinner("Loading crystal market data..."):
             install_cost_per_unit = profit_info['material_cost'] * install_cost_rate
             total_cost_per_unit = profit_info['material_cost'] + install_cost_per_unit
 
-            # Calculate profit after all fees
+            # Calculate profit after all fees (broker fee + sales tax applied to sell price)
             total_fees = (broker_fee + sales_tax) / 100
-            profit_before_sales_fees = profit_info['sell_price'] - total_cost_per_unit
-            profit_info['profit_after_fees'] = profit_before_sales_fees * (1 - total_fees)
+            net_sell_price = profit_info['sell_price'] * (1 - total_fees)
+            profit_info['profit_after_fees'] = net_sell_price - total_cost_per_unit
             profit_info['profit_margin_after_fees'] = (profit_info['profit_after_fees'] / total_cost_per_unit * 100) if total_cost_per_unit > 0 else 0
             profit_info['installation_cost'] = install_cost_per_unit
             profit_info['total_cost'] = total_cost_per_unit
+            profit_info['net_sell_price'] = net_sell_price
 
             # Update profit_10_bpc with installation cost and fees
             profit_info['profit_10_bpc'] = profit_info['profit_after_fees'] * profit_info['output_10_bpc']

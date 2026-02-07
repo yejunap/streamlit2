@@ -331,7 +331,7 @@ with st.sidebar:
         "Broker Fee (%)",
         min_value=0.0,
         max_value=5.0,
-        value=3.0,
+        value=1.5,
         step=0.1,
         help="Station trading broker fee"
     )
@@ -340,7 +340,7 @@ with st.sidebar:
         "Sales Tax (%)",
         min_value=0.0,
         max_value=5.0,
-        value=2.5,
+        value=3.4,
         step=0.1,
         help="Sales tax"
     )

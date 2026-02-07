@@ -315,8 +315,8 @@ def calculate_profit(crystal_name, crystal_data, material_prices):
     }
 
 # UI
-st.title("💎 EVE Online - Advanced Crystal Manufacturing Profit Calculator")
-st.caption("Advanced Frequency Crystal manufacturing profitability analysis")
+st.title("🏭 EVE Online - Manufacturing Profit Calculator")
+st.caption("T2 Crystals, Ammo, Rigs manufacturing profitability analysis")
 
 with st.sidebar:
     st.header("⚙️ Settings")

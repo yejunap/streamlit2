@@ -72,6 +72,9 @@ CRYSTALS = {
     # Medium Core Defense Field Extender II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
     'Medium Core Defense Field Extender II': {'type_id': 31796, 'materials': {'R.A.M.- Shield Tech': 4, 'Power Circuit': 24, 'Logic Circuit': 24, 'Enhanced Ward Console': 12}, 'runs': 4, 'output_per_run': 1},
 
+    # Small Core Defense Field Extender II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
+    'Small Core Defense Field Extender II': {'type_id': 31794, 'materials': {'R.A.M.- Shield Tech': 4, 'Power Circuit': 4, 'Logic Circuit': 4, 'Enhanced Ward Console': 4}, 'runs': 4, 'output_per_run': 1},
+
     # Large Core Defense Field Extender II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
     'Large Core Defense Field Extender II': {'type_id': 26448, 'materials': {'R.A.M.- Shield Tech': 4, 'Power Circuit': 120, 'Logic Circuit': 120, 'Enhanced Ward Console': 48}, 'runs': 4, 'output_per_run': 1},
 
@@ -89,6 +92,9 @@ CRYSTALS = {
 
     # Medium Capacitor Control Circuit II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
     'Medium Capacitor Control Circuit II': {'type_id': 31378, 'materials': {'R.A.M.- Energy Tech': 4, 'Power Circuit': 20, 'Logic Circuit': 20, 'Capacitor Console': 4}, 'runs': 4, 'output_per_run': 1},
+
+    # Small Capacitor Control Circuit II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
+    'Small Capacitor Control Circuit II': {'type_id': 31376, 'materials': {'R.A.M.- Energy Tech': 4, 'Power Circuit': 4, 'Logic Circuit': 4, 'Capacitor Console': 4}, 'runs': 4, 'output_per_run': 1},
 
     # Large Core Defense Operational Solidifier II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
     'Large Core Defense Operational Solidifier II': {'type_id': 26452, 'materials': {'R.A.M.- Shield Tech': 4, 'Power Circuit': 120, 'Logic Circuit': 120, 'Enhanced Ward Console': 48}, 'runs': 4, 'output_per_run': 1},

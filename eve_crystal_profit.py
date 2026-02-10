@@ -84,6 +84,24 @@ CRYSTALS = {
     # Large Trimark Armor Pump II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
     'Large Trimark Armor Pump II': {'type_id': 26302, 'materials': {'R.A.M.- Armor/Hull Tech': 4, 'Nanite Compound': 60, 'Interface Circuit': 92, 'Intact Armor Plates': 80}, 'runs': 4, 'output_per_run': 1},
 
+    # Small EM Armor Reinforcer II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
+    'Small EM Armor Reinforcer II': {'type_id': 31003, 'materials': {'R.A.M.- Armor/Hull Tech': 4, 'Nanite Compound': 4, 'Interface Circuit': 4, 'Intact Armor Plates': 4}, 'runs': 4, 'output_per_run': 1},
+
+    # Small Thermal Armor Reinforcer II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
+    'Small Thermal Armor Reinforcer II': {'type_id': 31039, 'materials': {'R.A.M.- Armor/Hull Tech': 4, 'Nanite Compound': 4, 'Interface Circuit': 4, 'Intact Armor Plates': 4}, 'runs': 4, 'output_per_run': 1},
+
+    # Medium EM Armor Reinforcer II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
+    'Medium EM Armor Reinforcer II': {'type_id': 31005, 'materials': {'R.A.M.- Armor/Hull Tech': 4, 'Nanite Compound': 4, 'Interface Circuit': 20, 'Intact Armor Plates': 12}, 'runs': 4, 'output_per_run': 1},
+
+    # Medium Thermal Armor Reinforcer II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
+    'Medium Thermal Armor Reinforcer II': {'type_id': 31041, 'materials': {'R.A.M.- Armor/Hull Tech': 4, 'Nanite Compound': 4, 'Interface Circuit': 20, 'Intact Armor Plates': 12}, 'runs': 4, 'output_per_run': 1},
+
+    # Large EM Armor Reinforcer II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
+    'Large EM Armor Reinforcer II': {'type_id': 26286, 'materials': {'R.A.M.- Armor/Hull Tech': 4, 'Nanite Compound': 48, 'Interface Circuit': 92, 'Intact Armor Plates': 80}, 'runs': 4, 'output_per_run': 1},
+
+    # Large Thermal Armor Reinforcer II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
+    'Large Thermal Armor Reinforcer II': {'type_id': 26292, 'materials': {'R.A.M.- Armor/Hull Tech': 4, 'Nanite Compound': 48, 'Interface Circuit': 92, 'Intact Armor Plates': 80}, 'runs': 4, 'output_per_run': 1},
+
     # Large Core Defense Field Purger II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
     'Large Core Defense Field Purger II': {'type_id': 26450, 'materials': {'R.A.M.- Shield Tech': 4, 'Power Circuit': 120, 'Logic Circuit': 120, 'Enhanced Ward Console': 48}, 'runs': 4, 'output_per_run': 1},
 

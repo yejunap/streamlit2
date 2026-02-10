@@ -60,12 +60,6 @@ CRYSTALS = {
     'Gleam M': {'type_id': 12826, 'materials': {'Morphite': 60, 'R.A.M.- Ammunition Tech': 10, 'Tungsten Carbide': 10440, 'Fullerides': 1800}, 'runs': 10, 'output_per_run': 4},
     'Gleam L': {'type_id': 12828, 'materials': {'Morphite': 150, 'R.A.M.- Ammunition Tech': 10, 'Tungsten Carbide': 26100, 'Fullerides': 4500}, 'runs': 10, 'output_per_run': 4},
 
-    # Void (Hybrid Ammo) - 5,000 units per run, 10 runs = 50,000 units (materials: 1 run × 10)
-    'Void M': {'type_id': 12789, 'materials': {'Morphite': 60, 'R.A.M.- Ammunition Tech': 10, 'Crystalline Carbonide': 2400, 'Fullerides': 2400}, 'runs': 10, 'output_per_run': 5000},
-
-    # Null (Hybrid Ammo) - 5,000 units per run, 10 runs = 50,000 units (materials: 1 run × 10)
-    'Null M': {'type_id': 12785, 'materials': {'Morphite': 60, 'R.A.M.- Ammunition Tech': 10, 'Crystalline Carbonide': 2400, 'Fullerides': 2400}, 'runs': 10, 'output_per_run': 5000},
-
     # Small Ionic Field Projector II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
     'Small Ionic Field Projector II': {'type_id': 31280, 'materials': {'Miniature Electronics': 24, 'R.A.M.- Electronics': 4, 'Artificial Neural Network': 4, 'Micro Circuit': 4, 'Logic Circuit': 4}, 'runs': 4, 'output_per_run': 1},
 
@@ -114,9 +108,6 @@ CRYSTALS = {
     # Small Capacitor Control Circuit II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
     'Small Capacitor Control Circuit II': {'type_id': 31376, 'materials': {'R.A.M.- Energy Tech': 4, 'Power Circuit': 4, 'Logic Circuit': 4, 'Capacitor Console': 4}, 'runs': 4, 'output_per_run': 1},
 
-    # Large Core Defense Operational Solidifier II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
-    'Large Core Defense Operational Solidifier II': {'type_id': 26452, 'materials': {'R.A.M.- Shield Tech': 4, 'Power Circuit': 120, 'Logic Circuit': 120, 'Enhanced Ward Console': 48}, 'runs': 4, 'output_per_run': 1},
-
     # Large Transverse Bulkhead II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
     'Large Transverse Bulkhead II': {'type_id': 33900, 'materials': {'R.A.M.- Armor/Hull Tech': 4, 'Nanite Compound': 92, 'Single-crystal Superalloy I-beam': 80, 'Interface Circuit': 60}, 'runs': 4, 'output_per_run': 1},
 
@@ -125,12 +116,6 @@ CRYSTALS = {
 
     # Small Transverse Bulkhead II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
     'Small Transverse Bulkhead II': {'type_id': 33892, 'materials': {'R.A.M.- Armor/Hull Tech': 4, 'Nanite Compound': 4, 'Single-crystal Superalloy I-beam': 4, 'Interface Circuit': 4}, 'runs': 4, 'output_per_run': 1},
-
-    # Large Ancillary Current Router II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
-    'Large Ancillary Current Router II': {'type_id': 26370, 'materials': {'R.A.M.- Energy Tech': 4, 'Power Conduit': 72, 'Power Circuit': 284, 'Logic Circuit': 272}, 'runs': 4, 'output_per_run': 1},
-
-    # Medium Ancillary Current Router II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
-    'Medium Ancillary Current Router II': {'type_id': 31366, 'materials': {'R.A.M.- Energy Tech': 4, 'Power Conduit': 12, 'Power Circuit': 56, 'Logic Circuit': 56}, 'runs': 4, 'output_per_run': 1},
 
     # Small Ancillary Current Router II (Rig) - 1 unit per run, 4 runs = 4 units (materials: 1 run × 4)
     'Small Ancillary Current Router II': {'type_id': 31364, 'materials': {'R.A.M.- Energy Tech': 4, 'Power Conduit': 4, 'Power Circuit': 4, 'Logic Circuit': 4}, 'runs': 4, 'output_per_run': 1},

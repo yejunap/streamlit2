@@ -168,7 +168,12 @@ def fetch_type_meta(type_ids: list[int], progress=None) -> dict[int, dict]:
         for _ in range(3):                      # 레이트리밋 맞으면 재시도 — volume 없음 처리로 새면 안 된다
             try:
                 body, _ = get(f"/latest/universe/types/{tid}/", cache_key=f"type_{tid}")
-                return tid, {"volume": float(body.get("volume") or 0.0),
+                # 시장은 무조건 **포장(packaged)** 상태로 오고 간다. 타입의 volume은
+                # 조립(assembled) 부피라 예컨드 리퍼 같은 항성은 5000m³로 잡혀 물량이 왜곡된다.
+                # packaged_volume이 있으면 그것이 실제 운송 부피다.
+                pv = float(body.get("packaged_volume") or 0.0)
+                vol = float(body.get("volume") or 0.0)
+                return tid, {"volume": pv if pv > 0 else vol,
                              "name": body.get("name", f"type {tid}")}
             except ESIRateLimited:
                 time.sleep(2.0)

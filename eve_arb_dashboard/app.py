@@ -122,11 +122,25 @@ def show_rows(rows: list[dict], title: str, rank_by: str):
     st.caption(f"{len(rows)}행 전체 · 기준 정렬: **{rank_by}** 내림차순 — "
                "**아무 열 머리말이나 누르면 그 열로 바로 정렬됩니다**")
     tbl = to_table(rows)
-    # 숫자 타입은 유지한 채로 천단위(,)만 입힌다 — 정렬은 여전히 숫자 기준
-    st.dataframe(
-        tbl, hide_index=True, width="stretch", height=min(1200, 34 * (len(tbl) + 2)),
-        column_config={c: st.column_config.NumberColumn(format="localized")
-                       for c in DECIMALS})
+    # 쇼핑 체크: 앞으로 체크된 종목은 종목명에 🟩 (표 배경색 커스텀은 Streamlit 한계)
+    pinned = st.session_state.get("pinned", set())
+    marked = tbl.copy()
+    checked = marked["종목"].isin(pinned)
+    marked["✓"] = checked
+    marked.loc[checked, "종목"] = "🟩 " + marked.loc[checked, "종목"]
+    marked = marked[["✓"] + COLUMNS]
+    cfg = {c: st.column_config.NumberColumn(format="localized") for c in DECIMALS}
+    cfg["✓"] = st.column_config.CheckboxColumn("✓", default=False,
+                                               help="체크하면 장바구니 — 맨 위 합산 창에 총부피·총뭉인 자본이 뜬다")
+    ed = st.data_editor(
+        marked, key=f"ed_{title}", hide_index=True, width="stretch",
+        height=min(1200, 34 * (len(marked) + 2)),
+        column_config=cfg, disabled=[c for c in marked.columns if c != "✓"])
+    if isinstance(ed, pd.DataFrame):    # 체크가 달라졌으면 실어서 위로 새로 고침 — 맨 위 합산이 본다
+        now = {n.replace("🟩 ", "") for n in ed.loc[ed["✓"].fillna(False), "종목"]}
+        if now != pinned:
+            st.session_state["pinned"] = now
+            st.rerun()
     st.download_button(
         f"CSV ({len(rows)}행)", tbl.to_csv(index=False).encode("utf-8-sig"),
         file_name=f"arb_{title}_{datetime.now():%m%d_%H%M}.csv", mime="text/csv")
@@ -243,6 +257,25 @@ for tid, books in scan["books"].items():
         rows[pname] += analyze_type(
             tid, meta[tid]["name"], mv, books["Jita"], books["Amarr"],
             fees["buy"], sell_fee, hist.get(tid, 0.0), cfg["cargo"])
+
+# ---- 🛒 장바구니 합산기 (체크한 종목) -----------------------------------------------------------
+pinned = st.session_state.get("pinned", set())
+if pinned:
+    best: dict[str, dict] = {}
+    for lst in rows.values():
+        for r in lst:
+            if r["item"] in pinned and (r["item"] not in best or r["profit"] > best[r["item"]]["profit"]):
+                best[r["item"]] = r
+    if best:
+        tot_v = sum(r["volume_m3"] or 0 for r in best.values())
+        tot_c = sum(r["capital"] for r in best.values())
+        tot_p = sum(r["profit"] for r in best.values())
+        with st.expander(f"🛒 장바구니 {len(best)}종목 — 합산", expanded=True):
+            a, b, c, d = st.columns(4)
+            a.metric("총부피", f"{tot_v:,.0f} m³")
+            b.metric("총 묶인 자본", f"{tot_c:,.0f} ISK")
+            c.metric("예상 순이익", f"{tot_p:,.0f} ISK")
+            d.metric("운항 횟수 (캐런 57,500m³)", f"{-(-tot_v // 57500):,.0f}")
 
 body = st.tabs(["🔀 크로스 아비 (A/B)", "🏪 내부 스프레드 (C/D)", "🃀 전체 통합", "🔬 종목 상세"])
 

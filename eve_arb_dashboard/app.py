@@ -111,6 +111,30 @@ def to_table(rows: list[dict]) -> pd.DataFrame:
     return view
 
 
+def render_basket(box, rows_map: dict, names: set):
+    """장바구니 합산을 placeholder에 채운다. 체크가 바뀐 런에도 즉시 호출된다."""
+    box.empty()
+    if not names:
+        return
+    best: dict[str, dict] = {}
+    for lst in rows_map.values():
+        for r in lst:
+            if r["item"] in names and (r["item"] not in best or r["profit"] > best[r["item"]]["profit"]):
+                best[r["item"]] = r
+    if not best:
+        return
+    tot_v = sum(r["volume_m3"] or 0 for r in best.values())
+    tot_c = sum(r["capital"] for r in best.values())
+    tot_p = sum(r["profit"] for r in best.values())
+    with box:
+        st.markdown(f"**🛒 장바구니 {len(best)}종목** — 합산")
+        a, b, c, d = st.columns(4)
+        a.metric("총부피", f"{tot_v:,.0f} m³")
+        b.metric("총 묶인 자본", f"{tot_c:,.0f} ISK")
+        c.metric("예상 순이익", f"{tot_p:,.0f} ISK")
+        d.metric("운항 횟수 (캐런 57,500m³)", f"{-(-tot_v // 57500):,.0f}")
+
+
 def show_rows(rows: list[dict], title: str, rank_by: str):
     if not rows:
         st.info(f"{title}: 조건을 통과한 아비가 없습니다.")
@@ -136,11 +160,14 @@ def show_rows(rows: list[dict], title: str, rank_by: str):
         marked, key=f"ed_{title}", hide_index=True, width="stretch",
         height=min(1200, 34 * (len(marked) + 2)),
         column_config=cfg, disabled=[c for c in marked.columns if c != "✓"])
-    if isinstance(ed, pd.DataFrame):    # 체크가 달라졌으면 실어서 위로 새로 고침 — 맨 위 합산이 본다
+    if isinstance(ed, pd.DataFrame):
         now = {n.replace("🟩 ", "") for n in ed.loc[ed["✓"].fillna(False), "종목"]}
         if now != pinned:
             st.session_state["pinned"] = now
-            st.rerun()
+            # 강제 새로 고침(rerun)은 표를 맨 앞으로 튕긴다 — 함 상자 제때 채운다.
+            bb, rr = globals().get("basket_box"), globals().get("rows")
+            if bb is not None and rr is not None:
+                render_basket(bb, rr, now)
     st.download_button(
         f"CSV ({len(rows)}행)", tbl.to_csv(index=False).encode("utf-8-sig"),
         file_name=f"arb_{title}_{datetime.now():%m%d_%H%M}.csv", mime="text/csv")
@@ -258,24 +285,10 @@ for tid, books in scan["books"].items():
             tid, meta[tid]["name"], mv, books["Jita"], books["Amarr"],
             fees["buy"], sell_fee, hist.get(tid, 0.0), cfg["cargo"])
 
-# ---- 🛒 장바구니 합산기 (체크한 종목) -----------------------------------------------------------
-pinned = st.session_state.get("pinned", set())
-if pinned:
-    best: dict[str, dict] = {}
-    for lst in rows.values():
-        for r in lst:
-            if r["item"] in pinned and (r["item"] not in best or r["profit"] > best[r["item"]]["profit"]):
-                best[r["item"]] = r
-    if best:
-        tot_v = sum(r["volume_m3"] or 0 for r in best.values())
-        tot_c = sum(r["capital"] for r in best.values())
-        tot_p = sum(r["profit"] for r in best.values())
-        with st.expander(f"🛒 장바구니 {len(best)}종목 — 합산", expanded=True):
-            a, b, c, d = st.columns(4)
-            a.metric("총부피", f"{tot_v:,.0f} m³")
-            b.metric("총 묶인 자본", f"{tot_c:,.0f} ISK")
-            c.metric("예상 순이익", f"{tot_p:,.0f} ISK")
-            d.metric("운항 횟수 (캐런 57,500m³)", f"{-(-tot_v // 57500):,.0f}")
+# ---- 🛒 장바구니 합산기 (체크한 종목) ----------------------------------------------------------
+# placeholder: 체크가 바뀐 바로 그 런에 show_rows가 채워 넣는다 — 강제 리런 없이 실시간 갱신.
+basket_box = st.empty()
+render_basket(basket_box, rows, st.session_state.get("pinned", set()))
 
 body = st.tabs(["🔀 크로스 아비 (A/B)", "🏪 내부 스프레드 (C/D)", "🃀 전체 통합", "🔬 종목 상세"])
 

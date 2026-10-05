@@ -4,6 +4,7 @@
 """
 from __future__ import annotations
 
+import csv
 import os
 import sys
 from datetime import datetime, timezone
@@ -58,6 +59,14 @@ class Bar:
 
 
 # --------------------------------------------------------------- 스캔
+# ---- Heavy Fighter 확정 목록 (data/fighters.csv, build_fighters.py) ------------------------------
+_FIGHTERS_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "fighters.csv")
+try:
+    with open(_FIGHTERS_CSV, encoding="utf-8") as _f:
+        FIGHTER_TIDS = [int(r["type_id"]) for r in csv.DictReader(_f)]
+except FileNotFoundError:
+    FIGHTER_TIDS = []
+
 def run_scan(workers: int, max_candidates: int, log) -> dict:
     """두 허브의 주문판을 받아 후보 종목만 남긴다 (첫 실행은 수 분)."""
     bar = Bar(587, "스테이션 주문판 다운로드")
@@ -75,6 +84,9 @@ def run_scan(workers: int, max_candidates: int, log) -> dict:
     keep = [t for _, t in sorted(((s, t) for t, s in scores.items()), reverse=True)][:max_candidates]
     # 내부 스프레드는 교차 종목이 아니어도 사나운 것이므로 무조건 데리고 있다.
     keep += list(internal_inversions(books_j) | internal_inversions(books_a))
+    # Heavy Fighter 16종(build_fighters.py)은 점수순과 무관하게 항상 계산 지킨다.
+    keep += FIGHTER_TIDS
+    keep = list(dict.fromkeys(keep))
     keep_n = "전체" if max_candidates >= 10 ** 8 else f"상위 {max_candidates}"
     log(f"교차 {len(scores)} → 조마진금액 {keep_n} + 내부역전 → {len(keep)}종목")
     return {"books": {t: {"Jita": books_j.get(t, {"sells": [], "buys": []}),

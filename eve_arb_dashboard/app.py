@@ -132,7 +132,10 @@ def render_basket(box, rows_map: dict, names: set):
         a.metric("총부피", f"{tot_v:,.0f} m³")
         b.metric("총 묶인 자본", f"{tot_c:,.0f} ISK")
         c.metric("예상 순이익", f"{tot_p:,.0f} ISK")
-        d.metric("운항 횟수 (캐런 57,500m³)", f"{-(-tot_v // 57500):,.0f}")
+        cargo_m3 = st.session_state.get("cargo_m3")
+        if not isinstance(cargo_m3, (int, float)) or cargo_m3 <= 0:
+            cargo_m3 = 534_000
+        d.metric(f"운항 횟수 (1회 {cargo_m3:,.0f}m³)", f"{-(-tot_v // cargo_m3):,.0f}")
 
 
 def show_rows(rows: list[dict], title: str):
@@ -209,7 +212,8 @@ def sidebar():
     # 기준 표는 Accounting Lv5 프리셋 하나로 (나머지는 비교용으로 체크해서 �쳐보기)
     acct5 = next(k for k in PRESETS if k.startswith("Accounting"))
     presets = st.sidebar.multiselect("수수료 프리셋", list(fees), default=[acct5])
-    cargo = st.sidebar.number_input("1회 적재 가능 부피 (m³)", 100, 500_000, 57_500, step=1000,
+    cargo = st.sidebar.number_input("1회 적재 가능 부피 (m³)", 100, 1_000_000, 534_000, step=1000,
+                                    key="cargo_m3",
                                     help="탈 배의 화물함 용량")
 
     st.sidebar.header("🔻 필터")

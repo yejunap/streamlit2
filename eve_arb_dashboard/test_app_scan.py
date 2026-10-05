@@ -12,6 +12,7 @@ if __name__ == "__main__" and os.environ.get("ESI_LIVE") != "1":
     raise SystemExit(0)
 
 at = AppTest.from_file("app.py", default_timeout=900)
+at.session_state["auth_ok"] = True      # 🔒 잠금 통과
 at.run()                            # 위젯 트리를 먼저 채운다
 t0 = time.time()
 at.sidebar.button[0].click().run()   # "주문판 전체 스캔"

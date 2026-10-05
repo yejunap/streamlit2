@@ -25,6 +25,7 @@ META = {34: {"volume": 0.01, "name": "Tritanium"}, 35: {"volume": 0.01, "name": 
 HIST = {34: 1_000_000, 35: 500_000}
 
 at = AppTest.from_file("app.py", default_timeout=90)
+at.session_state["auth_ok"] = True      # 🔒 잠금 통과 — 잠금 자체는 test_app_render가 본다
 at.session_state["scan"] = SCAN
 at.session_state["meta"] = META
 at.session_state["hist"] = HIST

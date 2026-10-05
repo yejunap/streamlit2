@@ -26,6 +26,19 @@ try:
 except Exception:              # 테스트용 가짜 스텁 모듈이면 넘어간다
     pass
 
+# ---- 🔒 잠금 ----------------------------------------------------------------------------------------
+# 혼자 보기용 4칙 암호. 바꿀 거 같으면 저 숫자만 고친다. 세션 동안 유지된다.
+if not st.session_state.get("auth_ok"):
+    st.title("🔒 EVE 허브 아비 대시보드")
+    pw = st.text_input("암호", type="password", key="_pw", placeholder="4칙")
+    if st.button("들어가기"):
+        if (pw or "") == "5767":
+            st.session_state["auth_ok"] = True
+            st.rerun()
+        else:
+            st.error("암호가 다릅니다.")
+    st.stop()
+
 
 class Bar:
     """호출 카운터 — Streamlit 진행줄에 얹는다."""

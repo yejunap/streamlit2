@@ -173,12 +173,12 @@ def show_rows(rows: list[dict], title: str):
     st.caption(f"{len(rows)}행 전체 · 정렬: **① ISK/m³↓ ② 순이익↓ ③ 묶인자본↑** — "
                "**아무 열 머리말이나 누르면 그 열로 바로 정렬됩니다**")
     tbl = to_table(rows)
-    # 쇼핑 체크: 앞으로 체크된 종목은 종목명에 🟩 (표 배경색 커스텀은 Streamlit 한계)
+    # 입력 데이터는 매 실행 완전히 동일하게 유지 — 체크된 행 표시를 데이터에 반
+    # 영시키면 Streamlit이 에디트 상태를 초기화해 첫 클릭이 사라진다 (체크박
+    # 스 자체가 시각 표시다).
     pinned = st.session_state.get("pinned", set())
     marked = tbl.copy()
-    checked = marked["종목"].isin(pinned)
-    marked["✓"] = checked
-    marked.loc[checked, "종목"] = "🟩 " + marked.loc[checked, "종목"]
+    marked["✓"] = False
     marked = marked[["✓"] + COLUMNS]
     cfg = {c: st.column_config.NumberColumn(format="localized") for c in DECIMALS}
     cfg["✓"] = st.column_config.CheckboxColumn("✓", default=False,

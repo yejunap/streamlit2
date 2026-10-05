@@ -197,30 +197,35 @@ def show_rows(rows: list[dict], title: str):
     # 행 선택형 표 — 체크박스 칸이 아니라 행 통째가 클릭 면적이고
     # 헤 칸 체크박스는 전체 선택이다. 클릭이 관대하고 첫 클릭이 안 새는 일도 없다.
     key = f"tbl_{title}"
+    hit = f"selhit_{title}"
+
+    def _on_sel():
+        # 선택 이벤트가 일어난 런만 표식을 세운다 — 새로고침·재스캔 후
+        # 빈 선택이 보여져 장바구니를 뒤덮는 일을 막는다.
+        st.session_state[hit] = True
+
     # 첫 실행에서만 표를 장바구니로 채운다 — 새로고침 후 체크표시가 돌아온다.
     seed = [i for i, n in enumerate(names) if n in pinned]
     if seed and f"seeded_{title}" not in st.session_state:
         st.session_state[key] = {"selection": {"rows": seed}}
         st.session_state[f"seeded_{title}"] = True
-    evt = st.dataframe(
+    st.dataframe(
         tbl, key=key, hide_index=True, width="stretch",
         height=min(1200, 34 * (len(tbl) + 2)),
-        column_config=cfg, selection_mode="multi-row", on_select="rerun")
-    sel_names: set[str] = set()
-    if evt is not None:
-        sel = getattr(evt, "selection", None) or {}
-        # 스테이블 API는 키가 "rows" — 행 인덱스 리스트
-        for i in (sel.get("rows") or []):
-            if isinstance(i, int) and i < len(names):
-                sel_names.add(names[i])
-    was = pinned & set(names)         # 이 표에 담겨 있던 것
-    if sel_names != was:              # 이 표가 실제로 바뀜 — 나머지 표 기여는 살린다
-        merged = (pinned - set(names)) | sel_names
-        st.session_state["pinned"] = merged
-        # 강제 새로 고침(rerun)은 표를 맨 앞으로 튕긴다 — 함 상자 제때 채운다.
-        bb, rr = globals().get("basket_box"), globals().get("rows")
-        if bb is not None and rr is not None:
-            render_basket(bb, rr, merged)
+        column_config=cfg, selection_mode="multi-row", on_select=_on_sel)
+    if st.session_state.pop(hit, False):
+        # 위젯 상태는 dict — 키("rows")로 읽어야 한다 (속성 아님!)
+        sel = (st.session_state.get(key) or {}).get("selection") or {}
+        rows_idx = sel.get("rows") or []
+        sel_names = {names[i] for i in rows_idx if isinstance(i, int) and i < len(names)}
+        was = pinned & set(names)         # 이 표에 담겨 있던 것
+        if sel_names != was:              # 이 표가 실제로 바뀜 — 나머지 표 기여는 살린다
+            merged = (pinned - set(names)) | sel_names
+            st.session_state["pinned"] = merged
+            # 강제 새로 고침(rerun)은 표를 맨 앞으로 튕긴다 — 함 상자 제때 채운다.
+            bb, rr = globals().get("basket_box"), globals().get("rows")
+            if bb is not None and rr is not None:
+                render_basket(bb, rr, merged)
     st.download_button(
         f"CSV ({len(rows)}행)", tbl.to_csv(index=False).encode("utf-8-sig"),
         file_name=f"arb_{title}_{datetime.now():%m%d_%H%M}.csv", mime="text/csv")

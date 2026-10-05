@@ -40,6 +40,20 @@ if not st.session_state.get("auth_ok"):
             st.error("암호가 다릅니다.")
     st.stop()
 
+# ---- 🖐 클릭 후관용 -----------------------------------------------------------------------------
+# 버튼이랑 셀렉트 항목을 키운다 — 꼭 징에 안 눌러도 눌리게.
+st.markdown("""
+<style>
+div[data-testid="stButton"] > button,
+div[data-testid="stDownloadButton"] > button {
+  padding: .9rem 1.6rem;
+  min-height: 3.4rem;
+  font-size: 1.05rem;
+}
+div[data-baseweb="menu"] li { padding-top: .55rem; padding-bottom: .55rem; }
+</style>
+""", unsafe_allow_html=True)
+
 
 class Bar:
     """호출 카운터 — Streamlit 진행줄에 얹는다."""
@@ -173,33 +187,36 @@ def show_rows(rows: list[dict], title: str):
     st.caption(f"{len(rows)}행 전체 · 정렬: **① ISK/m³↓ ② 순이익↓ ③ 묶인자본↑** — "
                "**아무 열 머리말이나 누르면 그 열로 바로 정렬됩니다**")
     tbl = to_table(rows)
-    # 입력 데이터는 매 실행 완전히 동일하게 유지 — 체크된 행 표시를 데이터에 반
-    # 영시키면 Streamlit이 에디트 상태를 초기화해 첫 클릭이 사라진다 (체크박
-    # 스 자체가 시각 표시다).
+    names = list(tbl["종목"])
     pinned = st.session_state.get("pinned", set())
-    marked = tbl.copy()
-    marked["✓"] = False
-    marked = marked[["✓"] + COLUMNS]
+    # 선택 창은 멀티선택 — 항목 한 줄 전부가 클릭 면적이라 아무 데나 눌러도
+    # 담긴다. 표 속 체크박스는 캔버스에 박힌 탓에 예민하고 첫 클릭이 밀리기도
+    # 해서, 표시만 담당시킨다.
+    sel = st.multiselect(
+        f"장바구니 — {title}", names,
+        default=[n for n in names if n in pinned],
+        placeholder="클릭해서 고르면 그 방에 실린다", key=f"ms_{title}",
+        label_visibility="collapsed")
+    now, was = set(sel), pinned & set(names)
+    if now != was:               # 이 표가 실제로 바뀜 — 남은 표의 기여는 살리고 합친다
+        merged = (pinned - set(names)) | now
+        st.session_state["pinned"] = merged
+        # 강제 새로 고침(rerun)은 표를 맨 앞으로 튕긴다 — 함 상자 제때 채운다.
+        bb, rr = globals().get("basket_box"), globals().get("rows")
+        if bb is not None and rr is not None:
+            render_basket(bb, rr, merged)
+        pinned = merged
+    disp = tbl.copy()
+    disp.insert(0, "✓", ["✔" if n in pinned else "" for n in names])
     cfg = {c: st.column_config.NumberColumn(format="localized") for c in DECIMALS}
-    cfg["✓"] = st.column_config.CheckboxColumn("✓", default=False,
-                                               help="체크하면 장바구니 — 맨 위 합산 창에 총부피·총뭉인 자본이 뜬다")
-    ed = st.data_editor(
-        marked, key=f"ed_{title}", hide_index=True, width="stretch",
-        height=min(1200, 34 * (len(marked) + 2)),
-        column_config=cfg, disabled=[c for c in marked.columns if c != "✓"])
-    if isinstance(ed, pd.DataFrame):
-        now = {n.replace("🟩 ", "") for n in ed.loc[ed["✓"].fillna(False), "종목"]}
-        was = pinned & set(tbl["종목"])   # 이 표에 체크된 채로 그려かった 것
-        if now != was:                   # 이 표가 실제로 바뀜 — 남은 표의 기여는 살리고 합친다
-            merged = (pinned - set(tbl["종목"])) | now
-            st.session_state["pinned"] = merged
-            # 강제 새로 고침(rerun)은 표를 맨 앞으로 튕긴다 — 함 상자 제때 채운다.
-            bb, rr = globals().get("basket_box"), globals().get("rows")
-            if bb is not None and rr is not None:
-                render_basket(bb, rr, merged)
+    st.data_editor(
+        disp, key=f"ed_{title}", hide_index=True, width="stretch",
+        height=min(1200, 34 * (len(disp) + 2)),
+        column_config=cfg, disabled=list(disp.columns))
     st.download_button(
         f"CSV ({len(rows)}행)", tbl.to_csv(index=False).encode("utf-8-sig"),
         file_name=f"arb_{title}_{datetime.now():%m%d_%H%M}.csv", mime="text/csv")
+    return tbl
     return tbl
 
 

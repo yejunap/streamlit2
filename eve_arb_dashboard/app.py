@@ -288,6 +288,10 @@ for tid, books in scan["books"].items():
 # ---- 🛒 장바구니 합산기 (체크한 종목) ----------------------------------------------------------
 # placeholder: 체크가 바뀐 바로 그 런에 show_rows가 채워 넣는다 — 강제 리런 없이 실시간 갱신.
 basket_box = st.empty()
+if st.button("🧹 장바구니 비우기", key="clear_basket",
+             disabled=not st.session_state.get("pinned")):
+    # 클릭한 이 런에 상태를 비우면 그 아래 표가 그릴 때 체크가 풀린다 — 리런 없음
+    st.session_state["pinned"] = set()
 render_basket(basket_box, rows, st.session_state.get("pinned", set()))
 
 body = st.tabs(["🔀 크로스 아비 (A/B)", "🏪 내부 스프레드 (C/D)", "🃀 전체 통합", "🔬 종목 상세"])

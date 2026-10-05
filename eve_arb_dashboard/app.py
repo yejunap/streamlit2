@@ -186,37 +186,34 @@ def show_rows(rows: list[dict], title: str):
     rows = [r for r in rows if r["isk_per_m3"] is not None]
     st.caption(f"{len(rows)}행 전체 · 정렬: **① ISK/m³↓ ② 순이익↓ ③ 묶인자본↑** — "
                "**아무 열 머리말이나 누르면 그 열로 바로 정렬됩니다**")
+    st.caption("🛒 **장바구니**: 표 왼쪽 체크박스를 고르거나 **행을 아무 데나 클릭** — "
+               "머리칸 체크박스는 전체 담기입니다")
     tbl = to_table(rows)
     names = list(tbl["종목"])
     pinned = st.session_state.get("pinned", set())
-    # 선택 창은 멀티선택 — 항목 한 줄 전부가 클릭 면적이라 아무 데나 눌러도
-    # 담긴다. 표 속 체크박스는 캔버스에 박힌 탓에 예민하고 첫 클릭이 밀리기도
-    # 해서, 표시만 담당시킨다.
-    sel = st.multiselect(
-        f"장바구니 — {title}", names,
-        default=[n for n in names if n in pinned],
-        placeholder="클릭해서 고르면 그 방에 실린다", key=f"ms_{title}",
-        label_visibility="collapsed")
-    now, was = set(sel), pinned & set(names)
-    if now != was:               # 이 표가 실제로 바뀜 — 남은 표의 기여는 살리고 합친다
-        merged = (pinned - set(names)) | now
+    cfg = {c: st.column_config.NumberColumn(format="localized") for c in DECIMALS}
+    # 행 선택형 표 — 체크박스 칸이 아니라 행 통째가 클릭 면적이고
+    # 헤 칸 체크박스는 전체 선택이다. 클릭이 관대하고 첫 클릭이 안 새는 일도 없다.
+    evt = st.dataframe(
+        tbl, key=f"tbl_{title}", hide_index=True, width="stretch",
+        height=min(1200, 34 * (len(tbl) + 2)),
+        column_config=cfg, selection_mode="multi-row", on_select="rerun")
+    sel_names: set[str] = set()
+    for src_key in ("m", "d"):
+        idxs = (getattr(evt, "selection", None) or {}).get(src_key) if evt else None
+        if src_key == "m" and idxs:
+            sel_names |= {names[i] for i in idxs if i < len(names)}
+    was = pinned & set(names)         # 이 표에 담겨 있던 것
+    if sel_names != was:              # 이 표가 실제로 바뀜 — 나머지 표 기여는 살린다
+        merged = (pinned - set(names)) | sel_names
         st.session_state["pinned"] = merged
         # 강제 새로 고침(rerun)은 표를 맨 앞으로 튕긴다 — 함 상자 제때 채운다.
         bb, rr = globals().get("basket_box"), globals().get("rows")
         if bb is not None and rr is not None:
             render_basket(bb, rr, merged)
-        pinned = merged
-    disp = tbl.copy()
-    disp.insert(0, "✓", ["✔" if n in pinned else "" for n in names])
-    cfg = {c: st.column_config.NumberColumn(format="localized") for c in DECIMALS}
-    st.data_editor(
-        disp, key=f"ed_{title}", hide_index=True, width="stretch",
-        height=min(1200, 34 * (len(disp) + 2)),
-        column_config=cfg, disabled=list(disp.columns))
     st.download_button(
         f"CSV ({len(rows)}행)", tbl.to_csv(index=False).encode("utf-8-sig"),
         file_name=f"arb_{title}_{datetime.now():%m%d_%H%M}.csv", mime="text/csv")
-    return tbl
     return tbl
 
 

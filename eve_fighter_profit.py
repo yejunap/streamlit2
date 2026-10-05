@@ -58,12 +58,22 @@ T1_RECIPE = {
         'Tritanium': 400000, 'Pyerite': 120000, 'Mexallon': 35000,
         'Isogen': 15000, 'Nocxium': 2500, 'Zydrine': 600, 'Megacyte': 1000,
     },
+    # Heavy fighters — real values pending; see HEAVY_T2_MATERIALS note below.
+    'heavy': None,
 }
 
 T1_RUNS_PER_BPC = 50   # maxProductionLimit of T1 fighter blueprints
 T2_RUNS_PER_BPC = 10   # maxProductionLimit of T2 fighter blueprints
 BUILD_TIME_SEC = 9000  # 2.5 hours per run (T1 and T2 alike)
 
+# --- Heavyfighter recipes -------------------------------------------------------------
+# 이 네트워크는 Fuzzwork 등 블루프린트 데이터 접근이 막혀 있어 Heavy 재료 실측치를
+# 자동으로 적을 수 없다. 게임 제조 화면에서 보고 채우면 그 즉시 수익표에 반영된다.
+# 값이 None이면 그 항목은 표에 안 나옵니다 (없는 숫자를 지레 계산하지 않음).
+HEAVY_T2_MATERIALS = {   # (component: qty) — 예: {R.A.M.- Starship Tech: 3, ...}
+    'Ametat II': None, 'Antaeus II': None, 'Cyclops II': None, 'Gungnir II': None,
+    'Malleus II': None, 'Mantis II': None, 'Termite II': None, 'Tyrfing II': None,
+}
 # --- T1 fighters (also the T2 precursor item) ---
 T1_FIGHTERS = {
     'Templar I':   {'type_id': 23055, 'recipe': 'light'},
@@ -78,6 +88,15 @@ T1_FIGHTERS = {
     'Siren I':     {'type_id': 40346, 'recipe': 'support'},
     'Dromi I':     {'type_id': 40347, 'recipe': 'support'},
     'Cenobite I':  {'type_id': 37599, 'recipe': 'support'},
+    # Heavy fighters (T2 precursor items) — types.csv 대조 확정 tid
+    'Ametat I':    {'type_id': 40362, 'recipe': 'heavy'},
+    'Antaeus I':   {'type_id': 40364, 'recipe': 'heavy'},
+    'Cyclops I':   {'type_id': 32325, 'recipe': 'heavy'},
+    'Gungnir I':   {'type_id': 40365, 'recipe': 'heavy'},
+    'Malleus I':   {'type_id': 32340, 'recipe': 'heavy'},
+    'Mantis I':    {'type_id': 32344, 'recipe': 'heavy'},
+    'Termite I':   {'type_id': 40363, 'recipe': 'heavy'},
+    'Tyrfing I':   {'type_id': 32342, 'recipe': 'heavy'},
 }
 
 # --- Component type IDs ---
@@ -214,6 +233,39 @@ T2_FIGHTERS = {
             'Nuclear Reactor Unit': 38, 'Nanomechanical Microprocessor': 40,
         },
     },
+    # --- Heavy fighters — 재료는 HEAVY_T2_MATERIALS에 실측 채표(현재 None) ---
+    'Ametat II': {
+        'type_id': 40560, 'category': 'Heavy', 't1': 'Ametat I',
+        'materials': HEAVY_T2_MATERIALS['Ametat II'],
+    },
+    'Antaeus II': {
+        'type_id': 40562, 'category': 'Heavy', 't1': 'Antaeus I',
+        'materials': HEAVY_T2_MATERIALS['Antaeus II'],
+    },
+    'Cyclops II': {
+        'type_id': 40563, 'category': 'Heavy', 't1': 'Cyclops I',
+        'materials': HEAVY_T2_MATERIALS['Cyclops II'],
+    },
+    'Gungnir II': {
+        'type_id': 40564, 'category': 'Heavy', 't1': 'Gungnir I',
+        'materials': HEAVY_T2_MATERIALS['Gungnir II'],
+    },
+    'Malleus II': {
+        'type_id': 40561, 'category': 'Heavy', 't1': 'Malleus I',
+        'materials': HEAVY_T2_MATERIALS['Malleus II'],
+    },
+    'Mantis II': {
+        'type_id': 40567, 'category': 'Heavy', 't1': 'Mantis I',
+        'materials': HEAVY_T2_MATERIALS['Mantis II'],
+    },
+    'Termite II': {
+        'type_id': 40566, 'category': 'Heavy', 't1': 'Termite I',
+        'materials': HEAVY_T2_MATERIALS['Termite II'],
+    },
+    'Tyrfing II': {
+        'type_id': 40565, 'category': 'Heavy', 't1': 'Tyrfing I',
+        'materials': HEAVY_T2_MATERIALS['Tyrfing II'],
+    },
 }
 
 TRADE_HUBS = {
@@ -286,6 +338,8 @@ def t1_manufacturing_cost(t1_name, mineral_prices, install_rate):
     Returns (total_cost, mat_breakdown) or (None, missing_list).
     """
     recipe = T1_RECIPE[T1_FIGHTERS[t1_name]['recipe']]
+    if recipe is None:           # Heavy — 실측치 대기, 표에서 빠진다
+        return None, []
     mat_cost = 0
     breakdown = {}
     for mineral, qty in recipe.items():
@@ -342,6 +396,8 @@ def calc_t2_profit(name, fighter, mineral_prices, component_prices,
     t1_name = fighter['t1']
 
     # T2 component cost (excluding the T1 precursor)
+    if fighter['materials'] is None:     # Heavy 실측 대기 — 숫자 지레 없음
+        return None
     comp_cost = 0
     breakdown = {}
     for comp, qty in fighter['materials'].items():
@@ -579,8 +635,14 @@ st.divider()
 st.header("⚔️ T2 전투기 제조 수익 (T1 + 부품 → T2)")
 
 cat_filter = st.multiselect(
-    "카테고리 필터", options=['Light', 'Support'], default=['Light', 'Support'],
+    "카테고리 필터", options=['Light', 'Support', 'Heavy'],
+    default=['Light', 'Support', 'Heavy'],
 )
+
+_pending = [n for n, v in HEAVY_T2_MATERIALS.items() if v is None]
+if _pending:
+    st.info("Heavy " + str(len(_pending)) + "종은 제조 재료 실측치가 아직 없어 수익표에서 빠져 있습니다 — "
+            "게임 제조 화면의 부품 수량을 app.py 상단 HEAVY_T2_MATERIALS에 채우면 바로 나타납니다.")
 
 t2_rows = []
 for name, fighter in T2_FIGHTERS.items():

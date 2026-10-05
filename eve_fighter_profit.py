@@ -503,30 +503,6 @@ with st.sidebar:
 
     st.markdown("---")
 
-    # --- ⚙️ Heavy 재료 입력 — 코드 수정 없이 여기서 채운다 -------------------------
-    st.subheader("⚙️ Heavy 재료 (실측 입력)")
-    _pick = st.selectbox("입력할 항목",
-                         ["T1 레시피 (전체 공유)"] + list(HEAVY_T2_MATERIALS),
-                         key="hv_pick")
-    _txt = st.text_area("재료 한 줄에 하나 — 게임 제조창 복붙 (끝에 수량)",
-                        key="hv_txt", height=130,
-                        placeholder="R.A.M.- Starship Tech 3\nGuidance Systems 12\nMorphite 12")
-    _done = st.session_state.get("heavy_mats", {})
-    if st.button("✓ 등록", key="hv_save", use_container_width=True):
-        _mats = {}
-        for line in (_txt or "").strip().splitlines():
-            _head, _, _num = line.rpartition(" ")
-            if _num.isdigit() and _head:
-                _mats[_head.strip()] = int(_num)
-        if _mats:
-            _done[_pick] = _mats
-            st.session_state["heavy_mats"] = _done
-            st.toast(f"{_pick} · {len(_mats)}종 등록")
-        else:
-            st.warning("수량 있는 줄이 없습니다 — 예: 'Morphite 12'")
-    if _pick in _done:
-        st.caption("✓ " + ", ".join(f"{k}:{v}" for k, v in _done[_pick].items()))
-
     st.subheader("Fee Settings")
 
     broker_fee = st.slider("Broker Fee (%)", min_value=0.0, max_value=5.0,
@@ -666,9 +642,10 @@ cat_filter = st.multiselect(
 )
 
 _pending = [n for n, v in HEAVY_T2_MATERIALS.items() if v is None]
-if _pending and not st.session_state.get("heavy_mats"):
-    st.info("Heavy 종목은 사이드바 **⚙️ Heavy 재료(실측 입력)** 에 제조창 수량을 붙여넣으면 "
-            "즉시 이 표에 나타납니다.")
+if _pending:
+    st.info(f"⚠️ Heavy {_pending and len(_pending)}종은 재료 실측치가 없어 수익표에서 빠져 있습니다. "
+            "게임 제조창의 부품 목록(예: 'Morphite 12' 8줄)을 주세요 — "
+            "app.py 상단 HEAVY_T2_MATERIALS에 바로 박아 넣습니다.")
 
 t2_rows = []
 for name, fighter in T2_FIGHTERS.items():

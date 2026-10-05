@@ -154,6 +154,8 @@ def render_basket(box, rows_map: dict, names: set):
     """장바구니 합산을 placeholder에 채운다. 체크가 바뀐 런에도 즉시 호출된다."""
     box.empty()
     if not names:
+        with box:
+            st.caption("🛒 장바구니 비어 있음 — 아래 표에서 체크박스로 종목을 담아오세요")
         return
     best: dict[str, dict] = {}
     for lst in rows_map.values():
@@ -194,15 +196,23 @@ def show_rows(rows: list[dict], title: str):
     cfg = {c: st.column_config.NumberColumn(format="localized") for c in DECIMALS}
     # 행 선택형 표 — 체크박스 칸이 아니라 행 통째가 클릭 면적이고
     # 헤 칸 체크박스는 전체 선택이다. 클릭이 관대하고 첫 클릭이 안 새는 일도 없다.
+    key = f"tbl_{title}"
+    # 첫 실행에서만 표를 장바구니로 채운다 — 새로고침 후 체크표시가 돌아온다.
+    seed = [i for i, n in enumerate(names) if n in pinned]
+    if seed and f"seeded_{title}" not in st.session_state:
+        st.session_state[key] = {"selection": {"rows": seed}}
+        st.session_state[f"seeded_{title}"] = True
     evt = st.dataframe(
-        tbl, key=f"tbl_{title}", hide_index=True, width="stretch",
+        tbl, key=key, hide_index=True, width="stretch",
         height=min(1200, 34 * (len(tbl) + 2)),
         column_config=cfg, selection_mode="multi-row", on_select="rerun")
     sel_names: set[str] = set()
-    for src_key in ("m", "d"):
-        idxs = (getattr(evt, "selection", None) or {}).get(src_key) if evt else None
-        if src_key == "m" and idxs:
-            sel_names |= {names[i] for i in idxs if i < len(names)}
+    if evt is not None:
+        sel = getattr(evt, "selection", None) or {}
+        # 스테이블 API는 키가 "rows" — 행 인덱스 리스트
+        for i in (sel.get("rows") or []):
+            if isinstance(i, int) and i < len(names):
+                sel_names.add(names[i])
     was = pinned & set(names)         # 이 표에 담겨 있던 것
     if sel_names != was:              # 이 표가 실제로 바뀜 — 나머지 표 기여는 살린다
         merged = (pinned - set(names)) | sel_names

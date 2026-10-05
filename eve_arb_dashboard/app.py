@@ -18,7 +18,7 @@ import freshen                                             # noqa: E402
 freshen.freshen_modules(_HERE)                              # 고친 코드 바로 반영
 
 import esi                                                 # noqa: E402
-from arb_core import (PRESETS, RANKERS, analyze_type, candidate_scores, filter_rows,  # noqa: E402
+from arb_core import (PRESETS, analyze_type, candidate_scores, filter_rows,  # noqa: E402
                       internal_inversions)
 
 try:
@@ -135,15 +135,14 @@ def render_basket(box, rows_map: dict, names: set):
         d.metric("운항 횟수 (캐런 57,500m³)", f"{-(-tot_v // 57500):,.0f}")
 
 
-def show_rows(rows: list[dict], title: str, rank_by: str):
+def show_rows(rows: list[dict], title: str):
     if not rows:
         st.info(f"{title}: 조건을 통과한 아비가 없습니다.")
         return
-    key = RANKERS[rank_by]
-    rows = sorted(rows, key=lambda d: (-key(d), -d["profit"]))
-    if rank_by == "ISK/m³":
-        rows = [r for r in rows if r["isk_per_m3"] is not None]
-    st.caption(f"{len(rows)}행 전체 · 기준 정렬: **{rank_by}** 내림차순 — "
+    # 3단계 고정: ① ISK/m³ 내림차순 ② 순이익 내림차순 ③ 묶인 자본 오름차순
+    rows = sorted(rows, key=lambda d: (-(d["isk_per_m3"] or 0), -d["profit"], d["capital"]))
+    rows = [r for r in rows if r["isk_per_m3"] is not None]
+    st.caption(f"{len(rows)}행 전체 · 정렬: **① ISK/m³↓ ② 순이익↓ ③ 묶인자본↑** — "
                "**아무 열 머리말이나 누르면 그 열로 바로 정렬됩니다**")
     tbl = to_table(rows)
     # 쇼핑 체크: 앞으로 체크된 종목은 종목명에 🟩 (표 배경색 커스텀은 Streamlit 한계)
@@ -217,11 +216,10 @@ def sidebar():
     min_cap = st.sidebar.number_input("최소 묶인 자본 ISK", 0, 10_000_000_000, 0, step=1_000_000)
     min_dv = st.sidebar.number_input("최소 일평균 거래량", 0, 1_000_000, 0, step=100)
     patterns = st.sidebar.multiselect("패턴", list("ABCD"), default=list("ABCD"))
-    rank_by = st.sidebar.selectbox("정렬", list(RANKERS), index=0)
     return dict(scan_now=scan_now, workers=workers, max_cand=max_cand, get_meta=get_meta,
                 fees=fees, presets=presets, cargo=cargo, min_pct=min_pct,
                 min_profit=min_profit, market_sell=sell_market,
-                min_cap=min_cap, min_dv=min_dv, patterns=set(patterns), rank_by=rank_by)
+                min_cap=min_cap, min_dv=min_dv, patterns=set(patterns))
 
 
 def show_book(scan: dict, meta: dict, tid: int):
@@ -301,7 +299,7 @@ def filt(rows_: list, pat: set) -> list:
 with body[0]:
     for pname, v in rows.items():
         st.subheader(pname)
-        show_rows(filt(v, {"A", "B"} & cfg["patterns"]), f"cross_{pname[:12]}", cfg["rank_by"])
+        show_rows(filt(v, {"A", "B"} & cfg["patterns"]), f"cross_{pname[:12]}")
 with body[1]:
     st.caption("운송이 없어 부피 제약이 걸리지 않는다. 같은 스테이션에서 매수호가가 매도호가보다 올라갈 때만 뜬다.")
     if not any(filter_rows(v, cfg["min_pct"], cfg["min_profit"], cfg["min_cap"],
@@ -310,11 +308,11 @@ with body[1]:
                 "최소 순이익 %를 0으로 내려라.")
     for pname, v in rows.items():
         st.subheader(pname)
-        show_rows(filt(v, {"C", "D"} & cfg["patterns"]), f"internal_{pname[:12]}", cfg["rank_by"])
+        show_rows(filt(v, {"C", "D"} & cfg["patterns"]), f"internal_{pname[:12]}")
 with body[2]:
     for pname, v in rows.items():
         st.subheader(pname)
-        show_rows(filt(v, set(cfg["patterns"])), f"all_{pname[:12]}", cfg["rank_by"])
+        show_rows(filt(v, set(cfg["patterns"])), f"all_{pname[:12]}")
 with body[3]:
     names = {tid: meta.get(tid, {}).get("name", f"type {tid}") for tid in scan["books"]}
     pick = st.selectbox("종목", list(names), format_func=lambda t: names[t])

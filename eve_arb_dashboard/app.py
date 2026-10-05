@@ -161,12 +161,14 @@ def show_rows(rows: list[dict], title: str):
         column_config=cfg, disabled=[c for c in marked.columns if c != "✓"])
     if isinstance(ed, pd.DataFrame):
         now = {n.replace("🟩 ", "") for n in ed.loc[ed["✓"].fillna(False), "종목"]}
-        if now != pinned:
-            st.session_state["pinned"] = now
+        was = pinned & set(tbl["종목"])   # 이 표에 체크된 채로 그려かった 것
+        if now != was:                   # 이 표가 실제로 바뀜 — 남은 표의 기여는 살리고 합친다
+            merged = (pinned - set(tbl["종목"])) | now
+            st.session_state["pinned"] = merged
             # 강제 새로 고침(rerun)은 표를 맨 앞으로 튕긴다 — 함 상자 제때 채운다.
             bb, rr = globals().get("basket_box"), globals().get("rows")
             if bb is not None and rr is not None:
-                render_basket(bb, rr, now)
+                render_basket(bb, rr, merged)
     st.download_button(
         f"CSV ({len(rows)}행)", tbl.to_csv(index=False).encode("utf-8-sig"),
         file_name=f"arb_{title}_{datetime.now():%m%d_%H%M}.csv", mime="text/csv")

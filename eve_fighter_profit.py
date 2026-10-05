@@ -58,8 +58,11 @@ T1_RECIPE = {
         'Tritanium': 400000, 'Pyerite': 120000, 'Mexallon': 35000,
         'Isogen': 15000, 'Nocxium': 2500, 'Zydrine': 600, 'Megacyte': 1000,
     },
-    # Heavy fighters — real values pending; see HEAVY_T2_MATERIALS note below.
-    'heavy': None,
+    # Heavy fighters — Fuzzwork blueprint 실측 (Ametat I 처방, 8종 공통)
+    'heavy': {
+        'Tritanium': 515000, 'Pyerite': 110000, 'Mexallon': 50000, 'Isogen': 15000,
+        'Nocxium': 2200, 'Zydrine': 1000, 'Megacyte': 1250,
+    },
 }
 
 T1_RUNS_PER_BPC = 50   # maxProductionLimit of T1 fighter blueprints
@@ -70,9 +73,47 @@ BUILD_TIME_SEC = 9000  # 2.5 hours per run (T1 and T2 alike)
 # 이 네트워크는 Fuzzwork 등 블루프린트 데이터 접근이 막혀 있어 Heavy 재료 실측치를
 # 자동으로 적을 수 없다. 게임 제조 화면에서 보고 채우면 그 즉시 수익표에 반영된다.
 # 값이 None이면 그 항목은 표에 안 나옵니다 (없는 숫자를 지레 계산하지 않음).
-HEAVY_T2_MATERIALS = {   # (component: qty) — 예: {R.A.M.- Starship Tech: 3, ...}
-    'Ametat II': None, 'Antaeus II': None, 'Cyclops II': None, 'Gungnir II': None,
-    'Malleus II': None, 'Mantis II': None, 'Termite II': None, 'Tyrfing II': None,
+HEAVY_T2_MATERIALS = {   # Fuzzwork blueprint 실측 — T1 전단계 1 + 부품 (기체당)
+    'Ametat II': {
+        'R.A.M.- Starship Tech': 3, 'Radar Sensor Cluster': 18, 'Morphite': 24,
+        'Guidance Systems': 28, 'Fusion Thruster': 42,
+        'Antimatter Reactor Unit': 48, 'Tungsten Carbide Armor Plate': 72,
+    },
+    'Antaeus II': {
+        'R.A.M.- Starship Tech': 3, 'Magnetometric Sensor Cluster': 18, 'Morphite': 24,
+        'Guidance Systems': 28, 'Ion Thruster': 42, 'Fusion Reactor Unit': 48,
+        'Crystalline Carbonide Armor Plate': 72,
+    },
+    'Cyclops II': {
+        'R.A.M.- Starship Tech': 3, 'Magnetometric Sensor Cluster': 18, 'Morphite': 24,
+        'Ion Thruster': 42, 'Fusion Reactor Unit': 48,
+        'Crystalline Carbonide Armor Plate': 72, 'Particle Accelerator Unit': 84,
+    },
+    'Gungnir II': {
+        'R.A.M.- Starship Tech': 3, 'Ladar Sensor Cluster': 18, 'Morphite': 24,
+        'Guidance Systems': 28, 'Plasma Thruster': 42, 'Nuclear Reactor Unit': 48,
+        'Fernite Carbide Composite Armor Plate': 72,
+    },
+    'Malleus II': {
+        'R.A.M.- Starship Tech': 3, 'Radar Sensor Cluster': 18, 'Morphite': 24,
+        'Fusion Thruster': 42, 'Antimatter Reactor Unit': 48,
+        'Tungsten Carbide Armor Plate': 72, 'Laser Focusing Crystals': 84,
+    },
+    'Mantis II': {
+        'R.A.M.- Starship Tech': 3, 'Gravimetric Sensor Cluster': 18, 'Morphite': 24,
+        'Magpulse Thruster': 42, 'Graviton Reactor Unit': 48,
+        'Titanium Diborite Armor Plate': 72, 'Superconductor Rails': 84,
+    },
+    'Termite II': {
+        'R.A.M.- Starship Tech': 3, 'Gravimetric Sensor Cluster': 18, 'Morphite': 24,
+        'Guidance Systems': 28, 'Magpulse Thruster': 42, 'Graviton Reactor Unit': 48,
+        'Titanium Diborite Armor Plate': 72,
+    },
+    'Tyrfing II': {
+        'R.A.M.- Starship Tech': 3, 'Ladar Sensor Cluster': 18, 'Morphite': 24,
+        'Plasma Thruster': 42, 'Nuclear Reactor Unit': 48,
+        'Fernite Carbide Composite Armor Plate': 72, 'Thermonuclear Trigger Unit': 84,
+    },
 }
 # --- T1 fighters (also the T2 precursor item) ---
 T1_FIGHTERS = {
@@ -129,6 +170,10 @@ COMPONENTS = {
     'Superconductor Rails': 11690,
     'Particle Accelerator Unit': 11688,
     'Thermonuclear Trigger Unit': 11691,
+    'Tungsten Carbide Armor Plate': 11543,
+    'Crystalline Carbonide Armor Plate': 11545,
+    'Fernite Carbide Composite Armor Plate': 11542,
+    'Titanium Diborite Armor Plate': 11544,
 }
 
 # --- T2 fighters: precursor T1 + component quantities (per unit) ---

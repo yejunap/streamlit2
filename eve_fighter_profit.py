@@ -26,9 +26,9 @@ except Exception:
     pass
 import os
 PASSWORD = PASSWORD or os.environ.get("ARB_PW", "").strip()
-UID = UID or os.environ.get("ARB_ID", "").strip() or "sl4"
-if not PASSWORD:
-    st.error("잠금 암호가 없습니다. 시크릿 `ARB_PW`를 거세요 (Settings → Secrets).")
+UID = UID or os.environ.get("ARB_ID", "").strip()
+if not PASSWORD or not UID:
+    st.error("잠금 쌍이 없습니다. 시크릿에 `ARB_ID` + `ARB_PW`를 거세요 (Settings → Secrets).")
     st.stop()
 
 if 'authenticated' not in st.session_state:

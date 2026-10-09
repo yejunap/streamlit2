@@ -28,9 +28,8 @@ except Exception:              # 테스트용 가짜 스텁 모듈이면 넘어�
     pass
 
 # ---- 🔒 잠금 ----------------------------------------------------------------------------------------
-# 잠금 쌍은 둘이서 논다 — ID는 기본 "sl4", 암호는 절대 리포에 안 올린다.
-#   구름/로컬 시크릿:  ARB_ID = "sl4"        (걸 안 걸면 기본 sl4가 그 따로다)
-#                     ARB_PW = "새 암호"     (이것 없으면 열지 않는다 — fail-closed)
+# 잠금 쌍은 둘이서 논다 — 둘 다 시크릿에 걸려야 열린다 (fail-closed). 코드에 예 값 없다.
+#   구름/로컬 시크릿:  ARB_ID = "..."   ARB_PW = "..."
 #   환경변수 ARB_ID/ARB_PW 도 같은 데 쓰인다.
 _UID = ""
 _PW = ""
@@ -39,17 +38,16 @@ try:
     _PW = str(st.secrets.get("ARB_PW") or "").strip()
 except Exception:
     pass
-_UID = _UID or os.environ.get("ARB_ID", "").strip() or "sl4"
+_UID = _UID or os.environ.get("ARB_ID", "").strip()
 _PW = _PW or os.environ.get("ARB_PW", "").strip()
-if not _PW:
-    st.error("잠금 암호가 없습니다. `ARB_PW`를 거세요 —\n\n"
-            "* 구름: Settings → Secrets → `ARB_PW = \"...\"`\n"
-            "* 로컬: `.streamlit/secrets.toml` 에 `ARB_PW = \"...` 또는 환경변수 `ARB_PW`\n\n"
-            "그것만 걸면 됩니다.")
+if not _UID or not _PW:
+    st.error("잠금 쌍이 없습니다. `ARB_ID` + `ARB_PW`를 거세요 —\n\n"
+            "* 구름: Settings → Secrets 에 두 줄\n"
+            "* 로컬: `.streamlit/secrets.toml` 또는 환경변수\n")
     st.stop()
 if not st.session_state.get("auth_ok"):
     st.title("🔒 EVE 허브 아비 대시보드")
-    uid = st.text_input("ID", key="_uid", placeholder=_UID)
+    uid = st.text_input("ID", key="_uid", placeholder="당신의 id")
     pw = st.text_input("암호", type="password", key="_pw", placeholder="암호")
     if st.button("들어가기"):
         if (uid or "").strip() == _UID and (pw or "") == _PW:

@@ -11,6 +11,7 @@ if __name__ == "__main__" and os.environ.get("ESI_LIVE") != "1":
     print("건너뜀: ESI 실호출 테스트는 ESI_LIVE=1 로 돌린다.")
     raise SystemExit(0)
 
+os.environ.setdefault("ARB_ID", "dumdum-id")
 os.environ.setdefault("ARB_PW", "dumdum")   # 잠금이 걸려야 통과한다
 
 at = AppTest.from_file("app.py", default_timeout=900)

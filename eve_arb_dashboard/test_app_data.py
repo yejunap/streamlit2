@@ -1,7 +1,8 @@
 """데이터 있는 렌더링 — 목 스캔을 심고 표가 나타나는지 본다."""
 import os
 
-os.environ.setdefault("ARB_PW", "dumdum")   # 잠금이 fail-closed라 걸어야 지나간다
+os.environ.setdefault("ARB_ID", "dumdum-id")   # 잠금이 쌍 fail-closed라 둘 다 걸어야 지나간다
+os.environ.setdefault("ARB_PW", "dumdum")
 
 from datetime import datetime, timedelta, timezone
 

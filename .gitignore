@@ -40,3 +40,6 @@ Thumbs.db
 # Environment variables
 .env
 .env.local
+
+# Streamlit secrets — 클라우드에 건 암호는 로컬에만 (깃에 절대 올리지 마라)
+.streamlit/secrets.toml

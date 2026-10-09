@@ -28,17 +28,28 @@ except Exception:              # 테스트용 가짜 스텁 모듈이면 넘어�
     pass
 
 # ---- 🔒 잠금 ----------------------------------------------------------------------------------------
-# 걸러_two용 4칙 암호. 예 전에는 리포에 안 적는다 — 구름 Secrets에 ARB_PW로 넣고,
-# 로컬은 configs/secrets.toml(깃 무시됨)에 둔다. 못 됐으면 예 값 5767로 밀어서 연다.
+# 잠금 암호는 여기서 고치지 않는다 — 숫자는 리포에 안 올라간다.
+#   올린곳:  대시보드 → Settings → Secrets 에   ARB_PW = "새 암호"
+#   로컬:    .streamlit/secrets.toml            ARB_PW = "..."   (깃 무시됨)
+#            또는 환경변수 ARB_PW 도 받는다.
+# 시크릿도 env도 없으면 열지 않는다 — 예 값은 없다.
+_PW = ""
 try:
-    _PW = st.secrets["ARB_PW"]
-except Exception:                       # 시크릿 파일이 없으면(테스트·로컬) 예 값으로
-    _PW = "5767"
+    _PW = str(st.secrets.get("ARB_PW") or "").strip()
+except Exception:
+    pass
+_PW = _PW or os.environ.get("ARB_PW", "").strip()
+if not _PW:
+    st.error("잠금 암호가 없습니다. `ARB_PW`를 거세요 —\n\n"
+            "* 구름: Settings → Secrets → `ARB_PW = \"...\"`\n"
+            "* 로컬: `.streamlit/secrets.toml` 에 `ARB_PW = \"...` 또는 환경변수 `ARB_PW`\n\n"
+            "그것만 걸면 됩니다.")
+    st.stop()
 if not st.session_state.get("auth_ok"):
     st.title("🔒 EVE 허브 아비 대시보드")
     pw = st.text_input("암호", type="password", key="_pw", placeholder="4칙")
     if st.button("들어가기"):
-        if (pw or "") == str(_PW):
+        if (pw or "") == _PW:
             st.session_state["auth_ok"] = True
             st.rerun()
         else:

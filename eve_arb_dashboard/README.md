@@ -17,11 +17,14 @@ streamlit run app.py --server.port 8581 --server.headless true   # → http://lo
 | `eve_arb_rens` | Jita 4-4 ↔ Rens VI | 8580 |
 | **`eve_arb_multi` (여기)** | **Jita 4-4 ↔ Amarr / Dodixie / Rens** | **8581** |
 
-암호는 뒤단으로 걸려 있다 — 로컬은 `5767` 그대로, 올린곳(Streamlit Cloud)은
-**Secrets에 `ARB_PW = "새 비밀번호"`** 로 넣는다 (`configs/secrets.toml` 도 로컬에선 통한다).
-시크릿이 없으면 `5767`로 밀어서 열리니, 올린곳에서는 반드시 `ARB_PW`를 걸어라 —
-`5767`은 이전 커밋에 박혀 있어 리포를 보는 사람은 안다. 사이드바의 **Jita ↔ 허브 쌍** 에서
-필요한 쌍만 고르면 그 주문판만 받는다 — 첫 스캔이 그만큼 줄어든다.
+잠금 암호는 리포에 없다 — 예 값 없이 **시크릿 없으면 안 열린다(fail-closed)**.
+걸면 된다:
+* 구름: 대시보드 → Settings → Secrets → `ARB_PW = "새 비밀번호"` (한 줄이면 끝)
+* 로컬: `.streamlit/secrets.toml` 에 `ARB_PW = "..."` (`.gitignore`로 무시됨) 또는 환경변수 `ARB_PW`
+
+`5767`은 한때 커밋에 박혀 있던 숫자일 뿐 — 걸기만한 새 비밀번호면 그걸로 치고 받아 쓴다.
+시크릿 없이도 여는 창은 없다. 사이드바의 **Jita ↔ 허브 쌍** 에서 필요한 쌍만 고르면 그 주문판만 받는다 —
+첫 스캔이 그만큼 줄어든다.
 
 `esi.py`, `arb_core.py`를 고치면 다음 실행 때 자동 반영됩니다 — `freshen.py`가
 모듈을 다시 올립니다. 그래도 안 되면 서버를 새로 띄우세요.

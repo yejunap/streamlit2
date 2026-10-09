@@ -8,7 +8,7 @@ T1/T2 전투기 제조 수익 계산기 (Streamlit 앱)
 streamlit run app.py
 ```
 
-- 비밀번호: `5767`
+- 비밀번호: 시크릿 `ARB_PW` (구름 Settings → Secrets 또는 `.streamlit/secrets.toml`)
 - 재료 조달: 시장 팔 호가(lowest sell) 전량 구매 기준
 - 시나리오 A: T1 전투기 시장 구매 → T2 제조
 - 시나리오 B: T1 전투기 광물으로 자체 제조 → T2 제조

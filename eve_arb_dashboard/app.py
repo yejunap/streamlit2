@@ -304,7 +304,7 @@ def sidebar():
         st.session_state["block_add"] = ""       # 다음 칸은 비어 있다 — 다음이 이어서 적는다
 
     st.sidebar.text_input("추가 — 타입 id 또는 이름 (쉼터)", key="block_add")
-    st.sidebar.button("걸기", key="block_go", on_click=_block_add, use_container_width=True)
+    st.sidebar.button("➕ 걸기", key="block_go", on_click=_block_add, use_container_width=True)
 
     _file = load_blocklist(BLOCK_FILE)
     _b = st.session_state["blocked"]

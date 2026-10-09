@@ -18,12 +18,15 @@ st.set_page_config(page_title="EVE Online - Crystal Profit Calculator", layout="
 # 암호는 리포에 없다 — 시크릿 ARB_PW (구름 Settings→Secrets 또는 .streamlit/secrets.toml).
 # 없으면 열지 않는다.
 PASSWORD = ""
+UID = ""
 try:
     PASSWORD = str(st.secrets.get("ARB_PW") or "").strip()
+    UID = str(st.secrets.get("ARB_ID") or "").strip()
 except Exception:
     pass
 import os
 PASSWORD = PASSWORD or os.environ.get("ARB_PW", "").strip()
+UID = UID or os.environ.get("ARB_ID", "").strip() or "sl4"
 if not PASSWORD:
     st.error("잠금 암호가 없습니다. 시크릿 `ARB_PW`를 거세요 (Settings → Secrets).")
     st.stop()
@@ -33,9 +36,10 @@ if 'authenticated' not in st.session_state:
 
 if not st.session_state.authenticated:
     st.title("🔒 Login Required")
+    uid = st.text_input("Enter ID:", key="_uid")
     password = st.text_input("Enter password:", type="password")
     if st.button("Login"):
-        if password == PASSWORD:
+        if (uid or "").strip() == UID and password == PASSWORD:
             st.session_state.authenticated = True
             st.rerun()
         else:

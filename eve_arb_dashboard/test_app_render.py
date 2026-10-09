@@ -19,7 +19,8 @@ at = AppTest.from_file("app.py", default_timeout=90)
 at.run()
 assert not at.exception, [e.value for e in at.exception]
 assert at.title[0].value.startswith("🔒"), "잠금이 안 걸렸다"
-at.text_input[0].set_value(os.environ["ARB_PW"])
+at.text_input[0].set_value("sl4")                    # 잠금 쌍의 ID 칸
+at.text_input[1].set_value(os.environ["ARB_PW"])
 at.button[0].click().run()
 assert not at.exception, [e.value for e in at.exception]
 assert at.title[0].value.startswith("📈")

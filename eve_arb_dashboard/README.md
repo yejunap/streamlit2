@@ -18,9 +18,10 @@ streamlit run app.py --server.port 8581 --server.headless true   # → http://lo
 | **`eve_arb_multi` (여기)** | **Jita 4-4 ↔ Amarr / Dodixie / Rens** | **8581** |
 
 잠금 암호는 리포에 없다 — 예 값 없이 **시크릿 없으면 안 열린다(fail-closed)**.
+잠금 **쌍**: `ARB_ID`(기본 `sl4`) + `ARB_PW`(필수). 로그인할 때 ID랑 암호 둘 다 물는다.
 걸면 된다:
-* 구름: 대시보드 → Settings → Secrets → `ARB_PW = "새 비밀번호"` (한 줄이면 끝)
-* 로컬: `.streamlit/secrets.toml` 에 `ARB_PW = "..."` (`.gitignore`로 무시됨) 또는 환경변수 `ARB_PW`
+* 구름: 대시보드 → Settings → Secrets → `ARB_ID = "sl4"` 줄에 `ARB_PW = "새 비밀번호"` (한 줄이면 끝)
+* 로컬: `.streamlit/secrets.toml` 에 `ARB_ID` + `ARB_PW` (`.gitignore`로 무시됨) 또는 환경변수
 
 `5767`은 한때 커밋에 박혀 있던 숫자일 뿐 — 걸기만한 새 비밀번호면 그걸로 치고 받아 쓴다.
 시크릿 없이도 여는 창은 없다. 사이드바의 **Jita ↔ 허브 쌍** 에서 필요한 쌍만 고르면 그 주문판만 받는다 —

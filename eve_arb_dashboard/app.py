@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import csv
+import json
 import os
 import sys
 from datetime import datetime, timezone
@@ -20,7 +21,10 @@ freshen.freshen_modules(_HERE)                              # 고친 코드 바�
 
 import esi                                                 # noqa: E402
 from arb_core import (PRESETS, analyze_type, candidate_scores, filter_rows,  # noqa: E402
-                      internal_inversions, pair_summary)
+                      internal_inversions, is_blocked, load_blocklist,
+                      pair_summary, parse_block_add)
+
+BLOCK_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "blocklist.json")
 
 try:
     st.set_page_config(page_title="EVE 허브 아비 — Jita↔Amarr·Dodixie·Rens", layout="wide", page_icon="📈")
@@ -286,6 +290,26 @@ def sidebar():
     max_cand = 10 ** 9 if all_cand else st.sidebar.slider("후보 종목 수", 100, 5000, 1000, step=100)
     get_meta = st.sidebar.toggle("부피·일평균 거래량 조회", value=True)
 
+    st.sidebar.header("🚫 낚시물 차단")
+    st.sidebar.caption("악성 판매자가 걸어두는 물건은 id나 이름으로 걸어둔 곳에서 걸러진다 — "
+                       "여기 적으면 이번 판부터 그걸로 걸러진다. "
+                       "**내려받기**로 받아 저장소에 심으면 다시 켜도 그대로다.")
+    st.sidebar.text_input("추가 차단 (쉼터) — 타입 id 또는 이름", key="block_add",
+                          placeholder="11288, Some Junk Item")
+    _file_bl = load_blocklist(BLOCK_FILE)
+    _add_ids, _add_names = parse_block_add(st.session_state.get("block_add", ""))
+    blocked = {"ids": _file_bl["ids"] | _add_ids, "names": _file_bl["names"] | _add_names}
+    if blocked["ids"] or blocked["names"]:
+        st.sidebar.caption(f"🚫 걸림 중 — id {sorted(blocked['ids']) or '—'} · "
+                           f"이름 {sorted(blocked['names']) or '—'}")
+        st.sidebar.download_button(
+            "⬇ 지금 것을 blocklist.json로 받아라",
+            json.dumps({"ids": sorted(blocked["ids"]),
+                        "names": sorted(blocked["names"])},
+                       ensure_ascii=False, indent=1),
+            file_name="blocklist.json")
+    st.session_state["blocked"] = blocked
+
     st.sidebar.header("💰 비용")
     st.sidebar.caption("즉시판매는 브로커 수수료 없음 (확인: EVE Uni Wiki — 'immediate'가 아닌 지정가에만 부과). "
                        "대신 판매세는 무조건 붙는다 — 2025-03부터 기본 7.5% (Accounting Lv5면 3.4%)")
@@ -374,18 +398,26 @@ sell_fee_of = {p: (cfg["fees"][p]["sell_tax"] if cfg["market_sell"]
                    else cfg["fees"][p]["sell_tax"] + cfg["fees"][p]["broker_sell"])
                for p in cfg["presets"]}
 rows: dict[str, list] = {p: [] for p in cfg["presets"]}
+blocked = st.session_state.get("blocked", {"ids": set(), "names": set()})
+skipped = 0
 for tid, books in scan["books"].items():
-    mv = meta.get(tid, {}).get("volume", 0.0)
-    if not mv:
+    m = meta.get(tid)
+    if not m or not m.get("volume"):
         continue
+    if is_blocked(tid, m["name"], blocked):      # 🚫 낚시물 — 표에 올리기도 전에 버린다
+        skipped += 1
+        continue
+    mv = m["volume"]
     for hub in scan["hubs"][1:]:                 # Jita와 짝을 이룰 허브들
         b_hub = books.get(hub, {"sells": [], "buys": []})     # 예전 스캔 잔존 시 비어있음
         for pname in cfg["presets"]:
             fees = cfg["fees"][pname]
             rows[pname] += analyze_type(
-                tid, meta[tid]["name"], mv, books["Jita"], b_hub,
+                tid, m["name"], mv, books["Jita"], b_hub,
                 fees["buy"], sell_fee_of[pname], hist.get(tid, 0.0), cfg["cargo"],
                 hub_b=hub)
+if skipped:
+    st.sidebar.caption(f"🚫 낚시물 {skipped}종목은 걸렀다")
 
 # ---- 🛒 장바구니 합산기 (체크한 종목) ----------------------------------------------------------
 # placeholder: 체크가 바뀐 바로 그 런에 show_rows가 채워 넣는다 — 강제 리런 없이 실시간 갱신.

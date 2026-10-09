@@ -1,6 +1,14 @@
 """arb_core 스무테스트 — 라이브 ESI 없이 돈다. `python3 -m test_arb_core`"""
 from arb_core import (analyze_type, candidate_scores, depth_score, internal_inversions,
-                      match_ladder)
+                      is_blocked, match_ladder, parse_block_add)
+
+# 0) 낚시물 차단 — id랑 이름 둘 다 걸린다, 이름은 대소문자 모른다
+_bl = {"ids": {35}, "names": {"junk mail bundle"}}
+assert is_blocked(35, "Tritanium", _bl)
+assert is_blocked(34, "Junk Mail Bundle", _bl)
+assert not is_blocked(34, "Tritanium", _bl)
+_ids, _names = parse_block_add("35, Junk Mail Bundle, 9")
+assert _ids == {35, 9} and _names == {"junk mail bundle"}, (_ids, _names)
 
 # 1) 한계이익이 음수가 되면 멈춘다
 asks = [(90.0, 100, None), (95.0, 100, None), (99.0, 100, None)]

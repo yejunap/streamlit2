@@ -8,7 +8,42 @@
 """
 from __future__ import annotations
 
+import json
+
 from datetime import datetime, timezone
+
+# ---- 🚫 낚시물 차단 -------------------------------------------------------------------------------
+# 악성 판매자가 걸어놓은 낀(new)-딜 물건은 사면 안 된다. 판별은 사람 몫 — 여기는 보관과 판정뿐.
+# 기준 목록은 저장소의 blocklist.json (다시 켜도 살아남는 유일한 곳), 그날의 추가는 사이드에서.
+def load_blocklist(path: str) -> dict:
+    """저장소의 blocklist.json — {"ids": [int…], "names": ["이름"…]} 두 칸만 본다."""
+    ids, names = set(), set()
+    try:
+        with open(path, encoding="utf-8") as f:
+            raw = json.load(f)
+        ids = {int(x) for x in raw.get("ids", [])}
+        names = {str(x).strip().lower() for x in raw.get("names", []) if str(x).strip()}
+    except FileNotFoundError:
+        pass
+    return {"ids": ids, "names": names}
+
+
+def parse_block_add(text: str) -> tuple[set, set]:
+    """쉼터 치기 — 숫자는 타입 id, 나머지는 이름(대소문자 안 가린다)."""
+    ids, names = set(), set()
+    for part in (p.strip() for p in (text or "").split(",")):
+        if not part:
+            continue
+        if part.isdigit():
+            ids.add(int(part))
+        else:
+            names.add(part.lower())
+    return ids, names
+
+
+def is_blocked(tid, name: str, bl: dict) -> bool:
+    return tid in bl["ids"] or (name or "").strip().lower() in bl["names"]
+
 
 # 수수료 (% 비례). 프리셋 값:
 #   buy          — 살 때 원금에 얹히는 요율 (브로커+세 합산)

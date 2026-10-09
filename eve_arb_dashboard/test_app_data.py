@@ -54,6 +54,20 @@ num = head[["총부피 m³", "ISK/m³", "매집가"]]
 assert all(str(t).startswith(("int", "float")) for t in num.dtypes), num.dtypes
 print("컬럼 숫자형 ok — 헤더클릭 정렬이 숫자 기준으로 동작")
 
+#---- 🚫 낚시물 차단 — 세션 추가(id랑 이름 둘 다)가 행을 지운다
+at2 = AppTest.from_file("app.py", default_timeout=90)
+at2.session_state["auth_ok"] = True
+at2.session_state["scan"] = SCAN
+at2.session_state["meta"] = META
+at2.session_state["hist"] = HIST
+at2.session_state["block_add"] = "35"          # Pyerite 를 id 로 건다 (이름은 아래 단위테스트)
+at2.run()
+assert not at2.exception, [e.value for e in at2.exception]
+seen_names = set(list(at2.dataframe)[0].value["종목"])
+assert "Pyerite" not in seen_names, seen_names
+assert "Tritanium" in seen_names, seen_names
+print("낚시물 차단 ok — 35(Pyerite) 걸러짐")
+
 #---- 여러 쌍이 한 표에 섞여 실린다 — 쌍 칼럼이 없거나 한 쌍이면 통합이 안 된 것
 assert "쌍" in head.columns, list(head.columns)
 seen = set(head["쌍"])

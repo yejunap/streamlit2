@@ -80,7 +80,7 @@ def _save_etag(key: str, etag: str, body):
         json.dump({"etag": etag, "body": body}, f)
 
 def get(path: str, params: dict | None = None, cache_key: str | None = None,
-        retries: int = 3):
+        retries: int = 4):
     """GET 하고 (json, headers) 반환. cache_key 를 주면 ETag 조건부 요청을 쓴다."""
     url = f"{ESI}{path}"
     headers = {}
@@ -99,8 +99,12 @@ def get(path: str, params: dict | None = None, cache_key: str | None = None,
         if r.status_code == 304 and cache_key:
             return _load_etag(cache_key)["body"], {}
         if r.status_code in (420, 429):
-            raise ESIRateLimited(
-                f"ESI rate limited (Retry-After {r.headers.get('Retry-After')}s)")
+            # 요청이 많을 때 이 속하면 한 번 걸린답쳐 전체 스캔이 깨지면 안 된다 —
+            # Retry-After 를 들어보되 10/20/30초로 점진적으로 머무르고 참는다.
+            asked = int(r.headers.get("Retry-After") or 0)
+            time.sleep(min(max(asked, 10 * (attempt + 1)), 30))
+            last_err = ESIRateLimited(f"ESI rate limited ({r.status_code})")
+            continue
         if r.status_code == 503:
             time.sleep(2 + attempt * 2)
             continue

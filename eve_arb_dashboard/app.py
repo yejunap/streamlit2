@@ -291,24 +291,44 @@ def sidebar():
     get_meta = st.sidebar.toggle("부피·일평균 거래량 조회", value=True)
 
     st.sidebar.header("🚫 낚시물 차단")
-    st.sidebar.caption("악성 판매자가 걸어두는 물건은 id나 이름으로 걸어둔 곳에서 걸러진다 — "
-                       "여기 적으면 이번 판부터 그걸로 걸러진다. "
-                       "**내려받기**로 받아 저장소에 심으면 다시 켜도 그대로다.")
-    st.sidebar.text_input("추가 차단 (쉼터) — 타입 id 또는 이름", key="block_add",
-                          placeholder="11288, Some Junk Item")
-    _file_bl = load_blocklist(BLOCK_FILE)
-    _add_ids, _add_names = parse_block_add(st.session_state.get("block_add", ""))
-    blocked = {"ids": _file_bl["ids"] | _add_ids, "names": _file_bl["names"] | _add_names}
+    st.sidebar.caption("타입 id나 이름을 걸리면 표에 오르기도 전에 걸러진다 — 여러 번 걸어도 계속 쌓인다. "
+                       "이번 판뿐인 것이라, 오래 둘 건 ⬇ 받아 저장소에 심어라.")
+    if "blocked" not in st.session_state:            # 세션 내내 누적되는 목록
+        st.session_state["blocked"] = {"ids": [], "names": []}
+
+    def _block_add():
+        _ids, _names = parse_block_add(st.session_state.get("block_add", ""))
+        _b = st.session_state["blocked"]
+        _b["ids"] = sorted(set(_b["ids"]) | _ids)
+        _b["names"] = sorted(set(_b["names"]) | {n.lower() for n in _names})
+        st.session_state["block_add"] = ""       # 다음 칸은 비어 있다 — 다음이 이어서 적는다
+
+    st.sidebar.text_input("추가 — 타입 id 또는 이름 (쉼터)", key="block_add")
+    st.sidebar.button("걸기", key="block_go", on_click=_block_add, use_container_width=True)
+
+    _file = load_blocklist(BLOCK_FILE)
+    _b = st.session_state["blocked"]
+    blocked = {"ids": _file["ids"] | set(_b["ids"]), "names": _file["names"] | set(_b["names"])}
     if blocked["ids"] or blocked["names"]:
-        st.sidebar.caption(f"🚫 걸림 중 — id {sorted(blocked['ids']) or '—'} · "
-                           f"이름 {sorted(blocked['names']) or '—'}")
+        with st.sidebar.expander(f"🚫 {len(blocked['ids'])}id · {len(blocked['names'])}이름 걸김"):
+            if _file["ids"] or _file["names"]:
+                st.caption(f"기준(파일) — id {sorted(_file['ids']) or '—'} · "
+                           f"이름 {sorted(_file['names']) or '—'}")
+            for _id in _b["ids"]:                # 이번 판 것은 이렇게 뺀다
+                if st.button(f"✕ {_id}", key=f"bx_id_{_id}"):
+                    _b["ids"].remove(_id)
+                    continue
+            for _nm in _b["names"]:
+                if st.button(f"✕ {_nm}", key=f"bx_nm_{_nm}"):
+                    _b["names"].remove(_nm)
+                    continue
         st.sidebar.download_button(
             "⬇ 지금 것을 blocklist.json로 받아라",
             json.dumps({"ids": sorted(blocked["ids"]),
                         "names": sorted(blocked["names"])},
                        ensure_ascii=False, indent=1),
             file_name="blocklist.json")
-    st.session_state["blocked"] = blocked
+    st.session_state["blocked_merged"] = blocked
 
     st.sidebar.header("💰 비용")
     st.sidebar.caption("즉시판매는 브로커 수수료 없음 (확인: EVE Uni Wiki — 'immediate'가 아닌 지정가에만 부과). "
@@ -398,7 +418,7 @@ sell_fee_of = {p: (cfg["fees"][p]["sell_tax"] if cfg["market_sell"]
                    else cfg["fees"][p]["sell_tax"] + cfg["fees"][p]["broker_sell"])
                for p in cfg["presets"]}
 rows: dict[str, list] = {p: [] for p in cfg["presets"]}
-blocked = st.session_state.get("blocked", {"ids": set(), "names": set()})
+blocked = st.session_state.get("blocked_merged", {"ids": set(), "names": set()})
 skipped = 0
 for tid, books in scan["books"].items():
     m = meta.get(tid)

@@ -1,4 +1,8 @@
 """데이터 있는 렌더링 — 목 스캔을 심고 표가 나타나는지 본다."""
+import os
+
+os.environ.setdefault("ARB_PW", "dumdum")   # 잠금이 fail-closed라 걸어야 지나간다
+
 from datetime import datetime, timedelta, timezone
 
 from streamlit.testing.v1 import AppTest

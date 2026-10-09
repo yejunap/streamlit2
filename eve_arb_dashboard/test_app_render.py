@@ -10,7 +10,7 @@ at.run()
 assert not at.exception, [e.value for e in at.exception]
 assert any("ARB_PW" in e.value for e in at.error), "시크릿 없다고 안 열려야 한다"
 
-os.environ["ARB_PW"] = "5767"          # 테스트용 잠금
+os.environ["ARB_PW"] = "dumdum"          # 테스트용 잠금 — 값은 아무것이나
 at = AppTest.from_file("app.py", default_timeout=90)
 at.run()
 assert not at.exception, [e.value for e in at.exception]

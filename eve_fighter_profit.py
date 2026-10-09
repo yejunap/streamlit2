@@ -15,7 +15,18 @@ st.set_page_config(
 # =============================================================
 # Password Protection
 # =============================================================
-PASSWORD = "5767"
+# 암호는 리포에 없다 — 시크릿 ARB_PW (구름 Settings→Secrets 또는 .streamlit/secrets.toml).
+# 없으면 열지 않는다.
+PASSWORD = ""
+try:
+    PASSWORD = str(st.secrets.get("ARB_PW") or "").strip()
+except Exception:
+    pass
+import os
+PASSWORD = PASSWORD or os.environ.get("ARB_PW", "").strip()
+if not PASSWORD:
+    st.error("잠금 암호가 없습니다. 시크릿 `ARB_PW`를 거세요 (Settings → Secrets).")
+    st.stop()
 
 if 'authenticated' not in st.session_state:
     st.session_state.authenticated = False

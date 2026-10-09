@@ -12,11 +12,17 @@ def book(ask, ask_q, bid, bid_q):
 
 
 SCAN = {
+    # 세 쌍을 다 실는다 — Jita를 기준으로 짝마다 창이 다르다.
+    "hubs": ["Jita", "Amarr", "Dodixie", "Rens"],
     "books": {
+        # 34: Jita가 싸고 세 허브가 다 비싸다 → 세 쌍에서 고만 아비가 나야 한다
         34: {"Jita": book(3.0, 5_000_000, 3.9, 5_000_000),
-             "Amarr": book(3.4, 4_000_000, 2.8, 4_000_000)},
+             "Amarr": book(3.4, 4_000_000, 2.8, 4_000_000),
+             "Dodixie": book(3.6, 4_000_000, 2.9, 4_000_000),
+             "Rens": book(3.2, 4_000_000, 2.7, 4_000_000)},
+        # 35: Rens에만 걸린 종목 — Jita↔Rens 쌍만 살아야 한다
         35: {"Jita": book(16.0, 2_000_000, 15.0, 2_000_000),
-             "Amarr": book(20.0, 2_000_000, 14.0, 2_000_000)},
+             "Rens": book(20.0, 2_000_000, 14.0, 2_000_000)},
     },
     "scores": {34: 1e7, 35: 1e7},
     "at": now,
@@ -42,3 +48,15 @@ print("표 개수:", len(tables))
 num = head[["총부피 m³", "ISK/m³", "매집가"]]
 assert all(str(t).startswith(("int", "float")) for t in num.dtypes), num.dtypes
 print("컬럼 숫자형 ok — 헤더클릭 정렬이 숫자 기준으로 동작")
+
+#---- 여러 쌍이 한 표에 섞여 실린다 — 쌍 칼럼이 없거나 한 쌍이면 통합이 안 된 것
+assert "쌍" in head.columns, list(head.columns)
+seen = set(head["쌍"])
+assert seen <= {"Jita↔Amarr", "Jita↔Dodixie", "Jita↔Rens"}, seen
+assert len(seen) >= 2, seen
+print("섞인 쌍:", sorted(seen))
+# 라벨은 각 쌍의 두 번째 허브 이름을 담는다 — 요약표(방향 칸 없음)는 걸러른다
+dirs = {d for t in tables if "방향" in t.value.columns
+        for d in set(t.value["방향"])}
+assert any("Dodixie" in d for d in dirs) and any("Rens" in d for d in dirs), dirs
+print("방향 라벨에 허브 이름 실림 ok:", sorted(dirs)[:4])

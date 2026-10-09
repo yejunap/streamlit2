@@ -1,31 +1,48 @@
-# EVE 허브 아비 대시보드 — Jita 4-4 ↔ Amarr VIII
+# EVE 허브 아비 대시보드 — Jita 4-4 ↔ Amarr · Dodixie · Rens (통합)
 
-두 무역 허브에서 **실제 체결 가능한 물량뿐**인 아비(차익거래)를 찾습니다.
+세 무역 허브를 Jita와 짝지어 **한 화면에서 견주는** 통합 판입니다.
+`eve_arb_dashboard`(Amarr 단독)를 포크했지만 **원본은 건드리지 않았습니다** — 계산 커널은 같고,
+허브를 고르고 행에 `쌍` 컬럼을 붙이고 `📊 페어 비교` 탭을 더했습니다.
 
 ```bash
 pip install -r requirements.txt       # streamlit · pandas · requests
-streamlit run app.py                  # → http://localhost:8501
+streamlit run app.py --server.port 8581 --server.headless true   # → http://localhost:8581
 ```
+
+| 앱 | 허브 쌍 | 포트 |
+|---|---|---|
+| `eve_arb_dashboard` | Jita 4-4 ↔ Amarr VIII | 8577 |
+| `eve_fighter_profit` | 전투기 제조 수익 | 8578 |
+| `eve_arb_dodixie` | Jita 4-4 ↔ Dodixie IX | 8579 |
+| `eve_arb_rens` | Jita 4-4 ↔ Rens VI | 8580 |
+| **`eve_arb_multi` (여기)** | **Jita 4-4 ↔ Amarr / Dodixie / Rens** | **8581** |
+
+암호 `5767`. 사이드바의 **Jita ↔ 허브 쌍** 에서 필요한 쌍만 고르면 그 주문판만 받는다 —
+첫 스캔이 그만큼 줄어든다.
 
 `esi.py`, `arb_core.py`를 고치면 다음 실행 때 자동 반영됩니다 — `freshen.py`가
 모듈을 다시 올립니다. 그래도 안 되면 서버를 새로 띄우세요.
 
-사이드바에서 **「주문판 전체 스캔」** 을 누르면 시작됩니다. 첫 실행은 두 리전 전체 주문(402 + 184 페이지)을 받으므로 수 분이고,
-이후에는 ETag 캐시를 때기 때문에 빨라집니다.
+사이드바에서 **「주문판 전체 스캔」** 을 누르면 시작됩니다. 첫 실행은 고른 쌍의 리전 전체 주문을 받으므로 수 분이고,
+이후에는 ETag 캐시를 때기 때문에 빨라집니다. (페이지 수: The Citadel 397 · Genesis 184 · Sinq Laison 114 · Heimatar 71 — 진행줄은 `esi.region_pages()`가 매 번 셉니다.)
 
 | | 시스템 | 리전 | 스테이션 |
 |---|---|---|---|
-| Jita 4-4 | `30000142` | `10000002` | `60003760` (Jita IV - Moon 4) |
-| Amarr VIII | `30002187` | `10000043` | `60008494` (Amarr VIII (Oris) - EFA) |
+| Jita 4-4 | `30000142` | `10000002` (The Citadel) | `60003760` (Jita IV - Moon 4) |
+| Amarr VIII | `30002187` | `10000043` (Genesis) | `60008494` (Amarr VIII (Oris) - EFA) |
+| Dodixie IX | `30002659` | `10000032` (Sinq Laison) | `60011866` (Dodixie IX - Moon 20 - Federation Navy Assembly Plant) |
+| Rens VI | `30002510` | `10000030` (Heimatar) | `60004588` (Rens VI - Moon 8 - Brutor Tribe Treasury) |
 
 ## 계산하는 4가지 패턴
 
+패턴 이름은 두 번째 허브 자리에 붙습니다 (아마 `X` = 고른 허브).
+
 | 패턴 | 사서 파는 곳 | 운송 |
 |---|---|---|
-| **A** | Amarr에서 사서 → Jita에 팔기 | O |
-| **B** | Jita에서 사서 → Amarr에 팔기 | O |
+| **A** | X에서 사서 → Jita에 팔기 | O |
+| **B** | Jita에서 사서 → X에 팔기 | O |
 | **C** | Jita 안에서 사고팔기 | **X (부피 무관)** |
-| **D** | Amarr 안에서 사고팔기 | **X (부피 무관)** |
+| **D** | X 안에서 사고팔기 | **X (부피 무관)** |
 
 계산은 두 허브의 주문판 → **창 두께로 자른 후보** + **같은 스테이션에서 사자 > 팔기가 뒤집힌 종목**까지 함께 담습니다.
 
@@ -69,3 +86,21 @@ ESI_LIVE=1 python3 test_app_scan.py   # 실제 ESI 호출 — 느리다
 * `python3 build_types.py`가 `data/types.csv`를 만든다 — 시장 통계(`markets/prices`)에 **더하기 두 허브 창에 주문이 있는 전 종목**의 합집합 (현재 19,757행). 통계 목록만 쓰면 Dragonfly/Dromi 같은 미출시(inventory) 아이템이 새므로 창을 반드시 얹는다
 * 참고: 이 서버의 `universe/ids`는 본문으로 **따로 배열**을 받아 `inventory_types` 키로 돌려준다 (`{"types":[...]}`는 거부됨)
 * 스캐너는 이 목록을 쓰지 **않는다** — 스캔 우주는 이미 두 허브에 주문이 있는 전 종목이다. 목록은 "빼먹은 종목 없는지" 확인하는 감사 용도다
+
+## 통합에서 만진 곳
+
+* `esi.py` — 네 허브를 `HUBS`에 모으고 `SECONDARIES = ["Amarr", "Dodixie", "Rens"]`, 진행 줄용 `region_pages()`
+* `arb_core.py` — `patterns_for(hub_b)` 가 짝마다 라벨을 만들고, `analyze_type(..., hub_b=)` 가 행에 `pair`/`hub`를 심는다. `pair_summary(rows)` 가 탭용으로 쌍을 세
+* `app.py` — `run_scan(hubs, ...)` 이 Jita를 한 번 받고 짝만큼 받는다 · 후보를 쌍별로 모은다 · `쌍` 컬럼 · `📊 페어 비교` 탭
+* `test_app_data.py` — 세 쌍이 한 표에 섞여 뜨는지, 라벨에 허브 이름이 박히는지 본다
+
+원본 `eve_arb_dashboard` 와 계산식을 포개어 본다 — `arb_core.py` 의 계산부는 같다.
+
+```bash
+diff -u ../eve_arb_dashboard/arb_core.py arb_core.py | head -40
+```
+
+### 페어 비교 우 대
+`📊 페어 비교` 는 운송 아비(A/B)만 센다 — C/D는 한 스테이션 내부 일이라 쌍의 수익이 아니다.
+합순이익 내림차순이라 맨 위가 그 판의 답이다.
+

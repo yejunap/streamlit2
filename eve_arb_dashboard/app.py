@@ -20,20 +20,25 @@ freshen.freshen_modules(_HERE)                              # 고친 코드 바�
 
 import esi                                                 # noqa: E402
 from arb_core import (PRESETS, analyze_type, candidate_scores, filter_rows,  # noqa: E402
-                      internal_inversions)
+                      internal_inversions, pair_summary)
 
 try:
-    st.set_page_config(page_title="EVE 허브 아비 — Jita↔Amarr", layout="wide", page_icon="📈")
+    st.set_page_config(page_title="EVE 허브 아비 — Jita↔Amarr·Dodixie·Rens", layout="wide", page_icon="📈")
 except Exception:              # 테스트용 가짜 스텁 모듈이면 넘어간다
     pass
 
 # ---- 🔒 잠금 ----------------------------------------------------------------------------------------
-# 혼자 보기용 4칙 암호. 바꿀 거 같으면 저 숫자만 고친다. 세션 동안 유지된다.
+# 걸러_two용 4칙 암호. 예 전에는 리포에 안 적는다 — 구름 Secrets에 ARB_PW로 넣고,
+# 로컬은 configs/secrets.toml(깃 무시됨)에 둔다. 못 됐으면 예 값 5767로 밀어서 연다.
+try:
+    _PW = st.secrets["ARB_PW"]
+except Exception:                       # 시크릿 파일이 없으면(테스트·로컬) 예 값으로
+    _PW = "5767"
 if not st.session_state.get("auth_ok"):
     st.title("🔒 EVE 허브 아비 대시보드")
     pw = st.text_input("암호", type="password", key="_pw", placeholder="4칙")
     if st.button("들어가기"):
-        if (pw or "") == "5767":
+        if (pw or "") == str(_PW):
             st.session_state["auth_ok"] = True
             st.rerun()
         else:
@@ -81,31 +86,47 @@ try:
 except FileNotFoundError:
     FIGHTER_TIDS = []
 
-def run_scan(workers: int, max_candidates: int, log) -> dict:
-    """두 허브의 주문판을 받아 후보 종목만 남긴다 (첫 실행은 수 분)."""
-    bar = Bar(587, "스테이션 주문판 다운로드")
+def run_scan(hubs: list[str], workers: int, max_candidates: int, log) -> dict:
+    """Jita + 선택 허브들의 주문판을 받아 후보 종목만 남긴다 (첫 실행은 수 분)."""
+    names = ["Jita"] + [h for h in hubs if h != "Jita"]
+    try:      # 진행 칸 수는 각 리전 페이지 합 — 세는 실패해도 스캔은 돈다
+        total = sum(esi.region_pages(esi.HUBS[h]["region"]) for h in names)
+    except Exception as e:
+        log(f"페이지 수 세기 실패({e}) — 기본값으로 진행")
+        total = 500 * len(names)
+    bar = Bar(max(total, 1), "스테이션 주문판 다운로드")
     done = bar.tick
 
-    log("Jita IV - Moon 4 주문판…")
-    books_j = esi.fetch_hub_orders(esi.JITA_REGION, esi.JITA_STATION,
-                                   workers=workers, progress=done, log=log)
-    log("Amarr VIII (Oris) 주문판…")
-    books_a = esi.fetch_hub_orders(esi.AMARR_REGION, esi.AMARR_STATION,
-                                   workers=workers, progress=done, log=log)
+    books: dict[str, dict] = {}
+    for h in names:
+        hb = esi.HUBS[h]
+        log(f"{h} 주문판…")
+        books[h] = esi.fetch_hub_orders(hb["region"], hb["station"],
+                                        workers=workers, progress=done, log=log)
     bar.done()
 
-    scores = candidate_scores(books_j, books_a)
-    keep = [t for _, t in sorted(((s, t) for t, s in scores.items()), reverse=True)][:max_candidates]
-    # 내부 스프레드는 교차 종목이 아니어도 사나운 것이므로 무조건 데리고 있다.
-    keep += list(internal_inversions(books_j) | internal_inversions(books_a))
+    # 후보는 쌍별로 상위 max_candidates를 모은다 — 한 쌍에만 남는 종목을 아끼지 않는다.
+    keep: list[int] = []
+    scores: dict[int, float] = {}
+    jita_inverted = internal_inversions(books["Jita"])
+    keep_n = "전체" if max_candidates >= 10 ** 8 else f"상위 {max_candidates}"
+    for h in names[1:]:
+        sc = candidate_scores(books["Jita"], books[h])
+        top = [t for _, t in sorted(((s, t) for t, s in sc.items()), reverse=True)][:max_candidates]
+        keep += top
+        for t, s in sc.items():
+            scores[t] = max(scores.get(t, 0.0), s)
+        # 내부 스프레드는 교차 종목이 아니어도 사납무므로 무조건 데리고 있다.
+        keep += list(jita_inverted | internal_inversions(books[h]))
+        log(f"Jita↔{h}: 교차 {len(sc)} → 조마진금액 {keep_n} + 내부역전")
     # Heavy Fighter 16종(build_fighters.py)은 점수순과 무관하게 항상 계산 지킨다.
     keep += FIGHTER_TIDS
     keep = list(dict.fromkeys(keep))
-    keep_n = "전체" if max_candidates >= 10 ** 8 else f"상위 {max_candidates}"
-    log(f"교차 {len(scores)} → 조마진금액 {keep_n} + 내부역전 → {len(keep)}종목")
-    return {"books": {t: {"Jita": books_j.get(t, {"sells": [], "buys": []}),
-                          "Amarr": books_a.get(t, {"sells": [], "buys": []})} for t in keep},
-            "scores": {t: scores.get(t, 0) for t in keep},
+    log(f"{len(names) - 1}쌍 합산 후보 → {len(keep)}종목")
+    return {"hubs": names,
+            "books": {t: {h: books[h].get(t, {"sells": [], "buys": []}) for h in names}
+                      for t in keep},
+            "scores": scores,
             "at": datetime.now(timezone.utc)}
 
 
@@ -124,10 +145,10 @@ def enrich(scan: dict, log) -> tuple[dict, dict]:
 
 
 # --------------------------------------------------------------- 표
-COLUMNS = ["종목", "패턴", "방향", "매집가", "청산가", "조마진%", "순이익%", "체결량",
+COLUMNS = ["종목", "쌍", "패턴", "방향", "매집가", "청산가", "조마진%", "순이익%", "체결량",
            "순이익 ISK", "묶인 자본", "단위부피 m³", "총부피 m³", "ISK/m³", "필요 운항",
            "1회 운항 이익", "일평균 거래량", "소요일", "매도호가 유지 h", "매수호가 유지 h"]
-SRC = ["item", "pattern", "direction", "buy_avg", "sell_avg", "gross_pct", "net_pct",
+SRC = ["item", "pair", "pattern", "direction", "buy_avg", "sell_avg", "gross_pct", "net_pct",
        "qty", "profit", "capital", "unit_volume", "volume_m3", "isk_per_m3", "trips",
        "profit_per_trip", "daily_volume", "days_to_sell", "ask_age_h", "bid_age_h"]
 # 표는 **숫자를 숫자로** 실는다 — 문자(1,141)로 포맷하면 UI 헤더클릭 정렬이
@@ -235,7 +256,12 @@ def show_rows(rows: list[dict], title: str):
 # --------------------------------------------------------------- 사이드바
 def sidebar():
     st.sidebar.header("⚙️ 스캔")
-    st.sidebar.caption("Jita 4-4 ↔ Amarr VIII (Oris) — 주문판 전량 → 창두께 상위 종목")
+    st.sidebar.caption("Jita 4-4 ↔ Amarr / Dodixie / Rens — 주문판 전량 → 창두께 상위 종목")
+    hub_sel = st.sidebar.multiselect(
+        "Jita ↔ 허브 쌍", esi.SECONDARIES, default=list(esi.SECONDARIES),
+        help="계산할 쌍만 고른다. 적게 고를수록 주문판 다운로드가 줄어 첫 스캔이 빨라진다.")
+    if not hub_sel:
+        hub_sel = list(esi.SECONDARIES)      # 하나도 안 고르면 전부
     scan_now = st.sidebar.button("🔄 주문판 전체 스캔", use_container_width=True)
     if st.sidebar.button("🧹 ESI 캐시 지우기", use_container_width=True):
         import glob
@@ -278,15 +304,16 @@ def sidebar():
     patterns = st.sidebar.multiselect("패턴", list("ABCD"), default=list("ABCD"))
     return dict(scan_now=scan_now, workers=workers, max_cand=max_cand, get_meta=get_meta,
                 fees=fees, presets=presets, cargo=cargo, min_pct=min_pct,
-                min_profit=min_profit, market_sell=sell_market,
+                min_profit=min_profit, market_sell=sell_market, hubs=hub_sel,
                 min_cap=min_cap, min_dv=min_dv, patterns=set(patterns))
 
 
 def show_book(scan: dict, meta: dict, tid: int):
-    """선택 종목의 양변 4면 호가창(상위 5칸)과 주문 유지 시간을 보여준다."""
+    """선택 종목의 허브별 4면 호가창(상위 5칸)과 주문 유지 시간을 보여준다."""
     b = scan["books"][tid]
-    cols = st.columns(2)
-    for i, hub in enumerate(("Jita", "Amarr")):
+    hubs = scan.get("hubs", list(b))
+    cols = st.columns(max(len(hubs), 1))
+    for i, hub in enumerate(hubs):
         bk = b[hub]
         with cols[i]:
             mv = meta.get(tid, {}).get("volume")
@@ -307,7 +334,7 @@ def show_book(scan: dict, meta: dict, tid: int):
 
 
 # --------------------------------------------------------------- 본문
-st.title("📈 Jita 4-4 ↔ Amarr VIII 아비 대시보드")
+st.title("📈 Jita 4-4 ↔ Amarr · Dodixie · Rens 아비 대시보드")
 st.caption("패턴 A/B: 허브 간 운송 아비 · C/D: 같은 스테이션 내부 스프레드 (운송 0, 부피 무의미)")
 
 cfg = sidebar()
@@ -316,7 +343,7 @@ log = lambda m: LOG.append(m)
 
 if cfg["scan_now"]:
     with st.spinner("주문ware 받는 중…"):
-        st.session_state["scan"] = run_scan(cfg["workers"], cfg["max_cand"], log)
+        st.session_state["scan"] = run_scan(cfg["hubs"], cfg["workers"], cfg["max_cand"], log)
         if cfg["get_meta"]:
             meta, hist = enrich(st.session_state["scan"], log)
             st.session_state["meta"], st.session_state["hist"] = meta, hist
@@ -330,18 +357,23 @@ meta = st.session_state.get("meta", {})
 hist = st.session_state.get("hist", {})
 st.sidebar.success(f"스캔 {scan['at'].astimezone().strftime('%H:%M:%S')} · {len(scan['books'])}종목")
 
+# 즉시판매(시장가)면 판매 브로커 수수료 없음 — 판매세만 붙는다
+sell_fee_of = {p: (cfg["fees"][p]["sell_tax"] if cfg["market_sell"]
+                   else cfg["fees"][p]["sell_tax"] + cfg["fees"][p]["broker_sell"])
+               for p in cfg["presets"]}
 rows: dict[str, list] = {p: [] for p in cfg["presets"]}
 for tid, books in scan["books"].items():
     mv = meta.get(tid, {}).get("volume", 0.0)
     if not mv:
         continue
-    for pname in cfg["presets"]:
-        fees = cfg["fees"][pname]
-        # 즉시판매(시장가)면 판매 브로커 수수료 없음 — 판매세만
-        sell_fee = fees["sell_tax"] if cfg["market_sell"] else fees["sell_tax"] + fees["broker_sell"]
-        rows[pname] += analyze_type(
-            tid, meta[tid]["name"], mv, books["Jita"], books["Amarr"],
-            fees["buy"], sell_fee, hist.get(tid, 0.0), cfg["cargo"])
+    for hub in scan["hubs"][1:]:                 # Jita와 짝을 이룰 허브들
+        b_hub = books.get(hub, {"sells": [], "buys": []})     # 예전 스캔 잔존 시 비어있음
+        for pname in cfg["presets"]:
+            fees = cfg["fees"][pname]
+            rows[pname] += analyze_type(
+                tid, meta[tid]["name"], mv, books["Jita"], b_hub,
+                fees["buy"], sell_fee_of[pname], hist.get(tid, 0.0), cfg["cargo"],
+                hub_b=hub)
 
 # ---- 🛒 장바구니 합산기 (체크한 종목) ----------------------------------------------------------
 # placeholder: 체크가 바뀐 바로 그 런에 show_rows가 채워 넣는다 — 강제 리런 없이 실시간 갱신.
@@ -352,7 +384,8 @@ if st.button("🧹 장바구니 비우기", key="clear_basket",
     st.session_state["pinned"] = set()
 render_basket(basket_box, rows, st.session_state.get("pinned", set()))
 
-body = st.tabs(["🔀 크로스 아비 (A/B)", "🏪 내부 스프레드 (C/D)", "🃀 전체 통합", "🔬 종목 상세"])
+body = st.tabs(["🔀 크로스 아비 (A/B)", "🏪 내부 스프레드 (C/D)", "🃀 전체 통합",
+                "📊 페어 비교", "🔬 종목 상세"])
 
 
 def filt(rows_: list, pat: set) -> list:
@@ -378,6 +411,21 @@ with body[2]:
         st.subheader(pname)
         show_rows(filt(v, set(cfg["patterns"])), f"all_{pname[:12]}")
 with body[3]:
+    st.caption("운송 아비(A/B)만 세었습니다 — C/D는 한 스테이션 내부 일이라 쌍의 수익에 넣지 않았습니다. "
+               "합순이익 내림차순이라, 어느 쌍이 실제로 남는지 맨 위가 말합니다.")
+    for pname, v in rows.items():
+        summ = pair_summary(filt(v, {"A", "B"} & cfg["patterns"]))
+        st.subheader(pname)
+        if not summ:
+            st.info("조건을 통과한 운송 아비가 없습니다.")
+            continue
+        st.dataframe(pd.DataFrame([
+            {"쌍": p, "행": s["행"], "합순이익 ISK": round(s["합순이익"]),
+             "묶인 자본": round(s["묶인자본"]), "최고 ISK/m³": round(s["최고_ISK_m3"]),
+             "최고 효율 종목": s["최고_종목"], "최고 순익 종목": s["최고_순익종목"]}
+            for p, s in sorted(summ.items(), key=lambda kv: -kv[1]["합순이익"])]),
+            hide_index=True, width="stretch")
+with body[4]:
     names = {tid: meta.get(tid, {}).get("name", f"type {tid}") for tid in scan["books"]}
     pick = st.selectbox("종목", list(names), format_func=lambda t: names[t])
     show_book(scan, meta, pick)

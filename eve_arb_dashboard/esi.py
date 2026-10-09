@@ -23,11 +23,26 @@ CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cache")
 JITA_SYSTEM, JITA_REGION, JITA_STATION = 30000142, 10000002, 60003760
 # Amarr VIII (Oris) - Emperor Family Academy
 AMARR_SYSTEM, AMARR_REGION, AMARR_STATION = 30002187, 10000043, 60008494
+# Dodixie IX - Moon 20 - Federation Navy Assembly Plant (Sinq Laison, 0.9)
+DODIXIE_SYSTEM, DODIXIE_REGION, DODIXIE_STATION = 30002659, 10000032, 60011866
+# Rens VI - Moon 8 - Brutor Tribe Treasury (Heimatar, 0.9)
+RENS_SYSTEM, RENS_REGION, RENS_STATION = 30002510, 10000030, 60004588
 
 HUBS = {
     "Jita": {"system": JITA_SYSTEM, "region": JITA_REGION, "station": JITA_STATION},
     "Amarr": {"system": AMARR_SYSTEM, "region": AMARR_REGION, "station": AMARR_STATION},
+    "Dodixie": {"system": DODIXIE_SYSTEM, "region": DODIXIE_REGION, "station": DODIXIE_STATION},
+    "Rens": {"system": RENS_SYSTEM, "region": RENS_REGION, "station": RENS_STATION},
 }
+
+# Jita를 중심으로 붙이는 쪽이 기본 (모두 두 번 계산하면 서로 같으므로 한 번씩)
+SECONDARIES = ["Amarr", "Dodixie", "Rens"]
+
+
+def region_pages(region: int) -> int:
+    """리전 주문판의 전체 페이지 수 — 진행 칸 세는 데만 쓰고, 본문은 버린다."""
+    _, hdrs = get(f"/latest/markets/{region}/orders/", params={"page": 1})
+    return int(hdrs.get("X-Pages", 1))
 
 
 class ESIRateLimited(Exception):

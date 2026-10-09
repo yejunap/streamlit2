@@ -55,4 +55,12 @@ small = {"qty": 1, "volume_m3": 709.0, "profit": 2, "isk_per_m3": None, "profit_
 none_ = {"qty": 1, "volume_m3": None, "profit": 3, "isk_per_m3": None, "profit_per_trip": None}
 f = RANKERS["총부피 m³"]
 assert f(big) > f(small) > f(none_), (f(big), f(small), f(none_))
+
+# 8) 통합 앱 — 다른 짚의 라벨이 붙는다 (hub_b 인수)
+r = analyze_type(34, "Trit", 0.01,
+                 {"sells": [(3.0, 10, None)], "buys": [(3.4, 10, None)]},
+                 {"sells": [(3.3, 10, None)], "buys": [(3.1, 10, None)]},
+                 0.0, 0.0, 10_000, 40_000, hub_b="Rens")[0]
+assert r["direction"] == "Rens→Jita", r
+assert r["pair"] == "Jita↔Rens" and r["hub"] == "Rens", r
 print("ok")

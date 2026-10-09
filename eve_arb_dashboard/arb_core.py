@@ -28,12 +28,18 @@ PRESETS = {
 }
 
 
-PATTERNS = {
-    "A": {"label": "Amarr→Jita", "transport": True},
-    "B": {"label": "Jita→Amarr", "transport": True},
-    "C": {"label": "Jita 내부", "transport": False},
-    "D": {"label": "Amarr 내부", "transport": False},
-}
+def patterns_for(hub_b: str) -> dict:
+    """두 번째 허브 이름에 맞춘 패턴 라벨 — 쌍이 바뀌면 라벨만 달라진다."""
+    return {
+        "A": {"label": f"{hub_b}→Jita", "transport": True},
+        "B": {"label": f"Jita→{hub_b}", "transport": True},
+        "C": {"label": "Jita 내부", "transport": False},
+        "D": {"label": f"{hub_b} 내부", "transport": False},
+    }
+
+
+# 하위 호환 — single-hub 스크립트(archive의 census 등)는 Amarr 쌍을 쓴다.
+PATTERNS = patterns_for("Amarr")
 
 
 def _now():
@@ -133,13 +139,15 @@ def _age_h(orders) -> float | None:
 
 def analyze_type(tid: int, name: str, unit_volume: float, a_book: dict, b_book: dict,
                 buy_fee: float, sell_fee: float, daily_vol: float,
-                cargo_m3: float) -> list[dict]:
-    """한 종목의 패턴 A/B/C/D 4 행을 만든다."""
+                cargo_m3: float, hub_b: str = "Amarr") -> list[dict]:
+    """한 종목의 패턴 A/B/C/D 4 행을 만든다. hub_b = Jita와 쌍을 이루는 두 번째 허브."""
+    pats = patterns_for(hub_b)
+    pair = f"Jita↔{hub_b}"
     legs = {
-        "A": (b_book.get("sells", []), a_book.get("buys", [])),   # Amar 판 → Jita 판
-        "B": (a_book.get("sells", []), b_book.get("buys", [])),   # Jita 판 → Amarr 판
+        "A": (b_book.get("sells", []), a_book.get("buys", [])),   # hub_b 販 → Jita 販
+        "B": (a_book.get("sells", []), b_book.get("buys", [])),   # Jita 販 → hub_b 販
         "C": (a_book.get("sells", []), a_book.get("buys", [])),   # Jita 내부
-        "D": (b_book.get("sells", []), b_book.get("buys", [])),   # Amarr 내부
+        "D": (b_book.get("sells", []), b_book.get("buys", [])),   # hub_b 내부
     }
     rows = []
     for key, (asks, bids) in legs.items():
@@ -149,8 +157,9 @@ def analyze_type(tid: int, name: str, unit_volume: float, a_book: dict, b_book: 
         vol_m3 = m["qty"] * unit_volume
         row = {
             "type_id": tid, "item": name, "pattern": key,
-            "direction": PATTERNS[key]["label"],
-            "transport": PATTERNS[key]["transport"],
+            "pair": pair, "hub": hub_b,
+            "direction": pats[key]["label"],
+            "transport": pats[key]["transport"],
             "buy_avg": m["buy_avg"], "sell_avg": m["sell_avg"],
             "gross_pct": m["gross_pct"], "net_pct": m["net_pct"],
             "qty": m["qty"], "capital": m["cost"], "profit": m["profit"],
@@ -192,3 +201,25 @@ def filter_rows(rows: list[dict], min_net_pct: float, min_profit: float,
             continue
         out.append(r)
     return out
+
+
+def pair_summary(rows: list[dict]) -> dict[str, dict]:
+    """쌍별 총합 — 세 쌍을 한 화면에서 견주어 어느 쌍이 남는지 가린다."""
+    out: dict[str, dict] = {}
+    for r in rows:
+        s = out.setdefault(r["pair"], {
+            "행": 0, "합순이익": 0.0, "묶인자본": 0.0,
+            "최고_ISK_m3": 0.0, "최고_종목": "—",
+            "최고_순익": 0.0, "최고_순익종목": "—",
+        })
+        s["행"] += 1
+        s["묶인자본"] += r["capital"]
+        if (r["isk_per_m3"] or 0) > s["최고_ISK_m3"]:
+            s["최고_ISK_m3"], s["최고_종목"] = r["isk_per_m3"], r["item"]
+        # 운송 아비(A/B)만 그 두 허브를 오가는money — 내부 스프레드는 쌍 수익이 아니다
+        if r["pattern"] in ("A", "B"):
+            s["합순이익"] += r["profit"]
+            if r["profit"] > s["최고_순익"]:
+                s["최고_순익"], s["최고_순익종목"] = r["profit"], r["item"]
+    return out
+

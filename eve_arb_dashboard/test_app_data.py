@@ -54,20 +54,18 @@ num = head[["총부피 m³", "ISK/m³", "매집가"]]
 assert all(str(t).startswith(("int", "float")) for t in num.dtypes), num.dtypes
 print("컬럼 숫자형 ok — 헤더클릭 정렬이 숫자 기준으로 동작")
 
-#---- 🚫 낚시물 차단 — 세션에 쌓인 목록이 행을 지운다 (여러 번 걸어도 다 걸러진다)
+#---- 🚫 낚시물 차단 — 세션에 쌓인 목록이 행을 지운다 (34는 표에 실제 나는 행)
 at2 = AppTest.from_file("app.py", default_timeout=90)
 at2.session_state["auth_ok"] = True
 at2.session_state["scan"] = SCAN
 at2.session_state["meta"] = META
 at2.session_state["hist"] = HIST
-# ➕ 걸기 두 번을 맞은 뒤의 모습 — id랑 이름이 모두 쌓여 있다
-at2.session_state["blocked"] = {"ids": [35], "names": []}
+at2.session_state["blocked"] = {"ids": [34], "names": []}
 at2.run()
 assert not at2.exception, [e.value for e in at2.exception]
-seen_names = set(list(at2.dataframe)[0].value["종목"])
-assert "Pyerite" not in seen_names, seen_names
-assert "Tritanium" in seen_names, seen_names
-print("낚시물 차단 ok — 35(Pyerite) 걸러짐")
+seen_names = {n for t in at2.dataframe if "종목" in t.value.columns for n in t.value["종목"]}
+assert "Tritanium" not in seen_names, seen_names
+print("낚시물 차단 ok — 34(Tritanium) 걸러짐")
 
 #---- ➕ 걸기 클릭은 쌓인다 — 두 번 걸어도 초기화되지 않는다
 at3 = AppTest.from_file("app.py", default_timeout=90)
@@ -88,6 +86,23 @@ for t in at3.dataframe:
         left |= set(t.value["종목"])
 assert not left, left                      # 둘 다 걸리면 남는 종목이 없다
 print("➕ 누적 걸기 ok — [34, 35] 다 걸림")
+
+#---- ⏸ 잠시 해제 — 걸어 둔 목록은 그대로, 걸리기만 않는 다
+at4 = AppTest.from_file("app.py", default_timeout=90)
+at4.session_state["auth_ok"] = True
+at4.session_state["scan"] = SCAN
+at4.session_state["meta"] = META
+at4.session_state["hist"] = HIST
+at4.session_state["blocked"] = {"ids": [34], "names": []}   # 표에 실제 있는 행을 걸었다
+at4.run()
+assert not at4.exception, [e.value for e in at4.exception]
+assert not any("Tritanium" in set(t.value["종목"]) for t in at4.dataframe if "종목" in t.value.columns)
+at4.button(key="block_off_btn").click().run()
+assert not at4.exception, [e.value for e in at4.exception]
+back = {n for t in at4.dataframe if "종목" in t.value.columns for n in set(t.value["종목"])}
+assert "Tritanium" in back, back                 # 풀었으니 돌아온다
+assert at4.session_state["blocked"]["ids"] == [34]   # 목록은 그대로다
+print("⏸ 잠시 해제 ok — 걸림은 그대로, 표는 되돌아옴")
 
 #---- 여러 쌍이 한 표에 섞여 실린다 — 쌍 칼럼이 없거나 한 쌍이면 통합이 안 된 것
 assert "쌍" in head.columns, list(head.columns)

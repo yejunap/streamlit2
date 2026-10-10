@@ -309,8 +309,14 @@ def sidebar():
     _file = load_blocklist(BLOCK_FILE)
     _b = st.session_state["blocked"]
     blocked = {"ids": _file["ids"] | set(_b["ids"]), "names": _file["names"] | set(_b["names"])}
+    _off = bool(st.session_state.get("block_off"))
+    def _block_off():
+        st.session_state["block_off"] = not st.session_state.get("block_off", False)
+    st.sidebar.button("🚫 다시 걸기" if _off else "⏸ 잠시 해제 — 걸어 둔 것도 다 보여요",
+                      key="block_off_btn", on_click=_block_off, use_container_width=True)
     if blocked["ids"] or blocked["names"]:
-        with st.sidebar.expander(f"🚫 {len(blocked['ids'])}id · {len(blocked['names'])}이름 걸김"):
+        with st.sidebar.expander(f"🚫 {len(blocked['ids'])}id · {len(blocked['names'])}이름 걸김"
+                                 + (" ·풀림" if _off else "")):
             if _file["ids"] or _file["names"]:
                 st.caption(f"기준(파일) — id {sorted(_file['ids']) or '—'} · "
                            f"이름 {sorted(_file['names']) or '—'}")
@@ -348,7 +354,10 @@ def sidebar():
         c1.button("💾 save", key="block_save", on_click=_block_save, use_container_width=True)
         c2.download_button("⬇ json", _now_json, file_name="blocklist.json",
                            use_container_width=True)
-    st.session_state["blocked_merged"] = blocked
+    if _off and (blocked["ids"] or blocked["names"]):
+        st.sidebar.caption("⏸ 풀어 둔 상태 — 표에 다 올라온다. 사지 말 것.")
+    st.session_state["blocked_merged"] = ({"ids": set(), "names": set()}
+                                          if _off else blocked)
 
     st.sidebar.header("💰 비용")
     st.sidebar.caption("즉시판매는 브로커 수수료 없음 (확인: EVE Uni Wiki — 'immediate'가 아닌 지정가에만 부과). "

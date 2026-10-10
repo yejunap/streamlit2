@@ -126,3 +126,14 @@ diff -u ../eve_arb_dashboard/arb_core.py arb_core.py | head -40
 { "ids": [11288], "names": ["Unstable Worm Protein"] }
 ```
 
+### 💾 앱에서 바로 저장 (건건이 받지 않아도 된다)
+
+시크릿에 **`GH_TOKEN`**만 걸면 — 앱의 **💾 save** 한 번으로 위 두 과정을 다 한다:
+앱 폴더 파일에 쓰고(이 뜨레는 곧장 반영) · 이어서 GitHub Contents API로 `blocklist.json`을
+커밋(재배포 후에도 그대로). 토큰은 리포에 쓰기 권한 한 칸만 켠 fine-grained PAT.
+
+```toml
+# Secrets — GH_REPO은 기본값이 이 저장소(yejunap/streamlit2)라 안 걸어도 된다
+GH_TOKEN = "github_pat_…"
+```
+

@@ -45,6 +45,26 @@ def is_blocked(tid, name: str, bl: dict) -> bool:
     return tid in bl["ids"] or (name or "").strip().lower() in bl["names"]
 
 
+def commit_blocklist(content: str, token: str, repo: str,
+                     path: str = "eve_arb_dashboard/blocklist.json") -> str:
+    """저장소에 새 기준을 알린다 — GitHub Contents API PUT 한 발. 한 줄 메시지를 준다."""
+    import base64
+    import requests
+    api = f"https://api.github.com/repos/{repo}/contents/{path}"
+    hdrs = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
+    try:
+        g = requests.get(api, headers=hdrs, timeout=15)
+        sha = g.json().get("sha") if g.status_code == 200 else None
+        body = {"message": "blocklist: 저장", "content": base64.b64encode(content.encode()).decode()}
+        if sha:
+            body["sha"] = sha
+        r = requests.put(api, headers=hdrs, json=body, timeout=15)
+        return "깃에 올림 — 다시 펴도 그대로" if r.status_code in (200, 201) \
+            else f"깃 HTTP {r.status_code}: {r.text[:100]}"
+    except Exception as e:
+        return f"깃 고장 — {e}"
+
+
 # 수수료 (% 비례). 프리셋 값:
 #   buy          — 살 때 원금에 얹히는 요율 (브로커+세 합산)
 #   sell_tax     — 팔 때 판매세 (시장가/지정가 무관 발생)

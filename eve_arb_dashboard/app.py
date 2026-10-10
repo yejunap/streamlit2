@@ -20,7 +20,7 @@ import freshen                                             # noqa: E402
 freshen.freshen_modules(_HERE)                              # 고친 코드 바로 반영
 
 import esi                                                 # noqa: E402
-from arb_core import (PRESETS, analyze_type, candidate_scores, filter_rows,  # noqa: E402
+from arb_core import (PRESETS, analyze_type, candidate_scores, commit_blocklist, filter_rows,  # noqa: E402
                       internal_inversions, is_blocked, load_blocklist,
                       pair_summary, parse_block_add)
 
@@ -322,12 +322,32 @@ def sidebar():
                 if st.button(f"✕ {_nm}", key=f"bx_nm_{_nm}"):
                     _b["names"].remove(_nm)
                     continue
-        st.sidebar.download_button(
-            "⬇ 지금 것을 blocklist.json로 받아라",
-            json.dumps({"ids": sorted(blocked["ids"]),
-                        "names": sorted(blocked["names"])},
-                       ensure_ascii=False, indent=1),
-            file_name="blocklist.json")
+        _now_json = json.dumps({"ids": sorted(blocked["ids"]),
+                                "names": sorted(blocked["names"])},
+                               ensure_ascii=False, indent=1)
+
+        def _block_save():
+            # 앱 폴더에 먼저 — 이 컨테이너는 곧장 반영. GH_TOKEN 보이면 깃에도 박는다.
+            try:
+                with open(BLOCK_FILE, "w", encoding="utf-8") as f:
+                    f.write(_now_json)
+                local = "서버 파일 저장"
+            except OSError:
+                local = "서버 파일 실패"
+            try:
+                tok = str(st.secrets.get("GH_TOKEN") or "").strip()
+                repo = str(st.secrets.get("GH_REPO") or "yejunap/streamlit2").strip()
+            except Exception:
+                tok, repo = "", ""
+            if tok:
+                st.toast(f"🚫 {local} · {commit_blocklist(_now_json, tok, repo)}", icon="💾")
+            else:
+                st.toast(f"🚫 {local} — 이번 뜨레뿐. 오래 둘 건 시크릿에 GH_TOKEN", icon="💾")
+
+        c1, c2 = st.sidebar.columns(2)
+        c1.button("💾 save", key="block_save", on_click=_block_save, use_container_width=True)
+        c2.download_button("⬇ json", _now_json, file_name="blocklist.json",
+                           use_container_width=True)
     st.session_state["blocked_merged"] = blocked
 
     st.sidebar.header("💰 비용")

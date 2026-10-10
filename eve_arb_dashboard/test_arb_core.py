@@ -10,6 +10,17 @@ assert not is_blocked(34, "Tritanium", _bl)
 _ids, _names = parse_block_add("35, Junk Mail Bundle, 9")
 assert _ids == {35, 9} and _names == {"junk mail bundle"}, (_ids, _names)
 
+# 0-2) 🧹 장바구니 비우기 — pinned만 아니라 표의(tbl_) 체크도 함께 비운다
+from arb_core import clear_basket_state
+_ss = {"pinned": {"A"}, "tbl_cross_X": {"selection": {"rows": [0, 1]}},
+       "seeded_cross_X": True, "selhit_cross_X": True, "block_off": True}
+clear_basket_state(_ss)
+assert _ss["pinned"] == set()
+assert _ss["tbl_cross_X"]["selection"]["rows"] == []
+assert "seeded_cross_X" not in _ss and "selhit_cross_X" not in _ss
+assert _ss["block_off"] is True                      # 풀어 둔 표시 같은 건 건드리지 않는다
+print("🧹 장바구니 비우기 ok — 체크도 함께 비워짐")
+
 # 1) 한계이익이 음수가 되면 멈춘다
 asks = [(90.0, 100, None), (95.0, 100, None), (99.0, 100, None)]
 bids = [(120.0, 50, None), (110.0, 50, None)]

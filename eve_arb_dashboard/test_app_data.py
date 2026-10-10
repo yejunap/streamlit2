@@ -115,3 +115,20 @@ dirs = {d for t in tables if "방향" in t.value.columns
         for d in set(t.value["방향"])}
 assert any("Dodixie" in d for d in dirs) and any("Rens" in d for d in dirs), dirs
 print("방향 라벨에 허브 이름 실림 ok:", sorted(dirs)[:4])
+
+#---- 🧹 장바구니 비우기 — 게이지 지면 체크도 함께 세져 ----------
+at5 = AppTest.from_file("app.py", default_timeout=90)
+at5.session_state["auth_ok"] = True
+at5.session_state["scan"] = SCAN
+at5.session_state["meta"] = META
+at5.session_state["hist"] = HIST
+at5.session_state["pinned"] = {"Tritanium"}          # 체크로 담긴 것처럼
+at5.run()
+assert not at5.exception, [e.value for e in at5.exception]
+assert at5.session_state["pinned"] == {"Tritanium"}
+at5.button(key="clear_basket").click().run()
+assert not at5.exception, [e.value for e in at5.exception]
+assert at5.session_state["pinned"] == set()          # 바구니는 비었다
+at5.run()                                            # 다시 돌려도 비어 있다 — 체크가 새면 안 산다
+assert at5.session_state["pinned"] == set()
+print("🧹 장바구니 비우기 ok — 체크도 함께세져")

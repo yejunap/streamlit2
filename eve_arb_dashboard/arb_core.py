@@ -65,6 +65,20 @@ def commit_blocklist(content: str, token: str, repo: str,
         return f"깃 고장 — {e}"
 
 
+# ---- 🧹 장바구니 비우기 --------------------------------------------------------------------------
+# 장바구니(pinned)와 표의 체크는 저장소가 두 곳이다: 체크는 st.dataframe 위젯 상태(tbl_ 키)에 산다.
+# pinned만 비우면 화면의 체크는 그대로 남고, 더 나쁘게 그 다음 체크 소리에
+# 찍혀 있던 묵은 체크가 빈 장바구니로 되돌아온다. 그래서 비울 때 체크도 함께 비운다.
+def clear_basket_state(ss) -> None:
+    """pinned을 비우고 tbl_ 표의 체크를 모두 푼다 — 버튼 콜백에서 부른다."""
+    ss["pinned"] = set()
+    for k in list(ss):
+        if k.startswith("tbl_"):
+            ss[k] = {"selection": {"rows": []}}
+        elif k.startswith(("seeded_", "selhit_")):
+            del ss[k]
+
+
 # 수수료 (% 비례). 프리셋 값:
 #   buy          — 살 때 원금에 얹히는 요율 (브로커+세 합산)
 #   sell_tax     — 팔 때 판매세 (시장가/지정가 무관 발생)

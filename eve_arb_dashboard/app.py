@@ -20,9 +20,9 @@ import freshen                                             # noqa: E402
 freshen.freshen_modules(_HERE)                              # 고친 코드 바로 반영
 
 import esi                                                 # noqa: E402
-from arb_core import (PRESETS, analyze_type, candidate_scores, commit_blocklist, filter_rows,  # noqa: E402
-                      internal_inversions, is_blocked, load_blocklist,
-                      pair_summary, parse_block_add)
+from arb_core import (PRESETS, analyze_type, candidate_scores, clear_basket_state,  # noqa: E402
+                          commit_blocklist, filter_rows, internal_inversions, is_blocked,
+                          load_blocklist, pair_summary, parse_block_add)
 
 BLOCK_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "blocklist.json")
 
@@ -472,9 +472,11 @@ if skipped:
 # placeholder: 체크가 바뀐 바로 그 런에 show_rows가 채워 넣는다 — 강제 리런 없이 실시간 갱신.
 basket_box = st.empty()
 if st.button("🧹 장바구니 비우기", key="clear_basket",
-             disabled=not st.session_state.get("pinned")):
-    # 클릭한 이 런에 상태를 비우면 그 아래 표가 그릴 때 체크가 풀린다 — 리런 없음
-    st.session_state["pinned"] = set()
+             disabled=not st.session_state.get("pinned"),
+             on_click=lambda: clear_basket_state(st.session_state)):
+    # 체크는 tbl_ 표의 위젯 상태에 산다 — 콜백(clear_basket_state)이 것까지 함께 비운다.
+    # 여기 pinned만 씻으면 체크는 그대로이고, 다음 소리에 묵은 체크가 장바구니로 돌아온다.
+    pass
 render_basket(basket_box, rows, st.session_state.get("pinned", set()))
 
 body = st.tabs(["🔀 크로스 아비 (A/B)", "🏪 내부 스프레드 (C/D)", "🃀 전체 통합",

@@ -20,9 +20,9 @@ import freshen                                             # noqa: E402
 freshen.freshen_modules(_HERE)                              # 고친 코드 바로 반영
 
 import esi                                                 # noqa: E402
-from arb_core import (PRESETS, analyze_type, candidate_scores, clear_basket_state,  # noqa: E402
-                          commit_blocklist, filter_rows, internal_inversions, is_blocked,
-                          load_blocklist, pair_summary, parse_block_add)
+from arb_core import (PRESETS, SORTS, analyze_type, candidate_scores, clear_basket_state,  # noqa: E402
+                      commit_blocklist, filter_rows, internal_inversions, is_blocked,
+                      load_blocklist, pair_summary, parse_block_add, sort_rows)
 
 BLOCK_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "blocklist.json")
 
@@ -132,9 +132,9 @@ def run_scan(hubs: list[str], workers: int, max_candidates: int, log) -> dict:
         keep += top
         for t, s in sc.items():
             scores[t] = max(scores.get(t, 0.0), s)
-        # 내부 스프레드는 교차 종목이 아니어도 사납무므로 무조건 데리고 있다.
+        # 한 스테이션에서 매수호가가 매도호가를 뒤집은 종목(A/B/C/D와 무관한 기회)은 무조건 데리고 있다.
         keep += list(jita_inverted | internal_inversions(books[h]))
-        log(f"Jita↔{h}: 교차 {len(sc)} → 조마진금액 {keep_n} + 내부역전")
+        log(f"Jita↔{h}: 교차 {len(sc)} → 조마진금액 {keep_n} + 매매역전")
     # Heavy Fighter 16종(build_fighters.py)은 점수순과 무관하게 항상 계산 지킨다.
     keep += FIGHTER_TIDS
     keep = list(dict.fromkeys(keep))
@@ -163,17 +163,20 @@ def enrich(scan: dict, log) -> tuple[dict, dict]:
 # --------------------------------------------------------------- 표
 COLUMNS = ["종목", "쌍", "패턴", "방향", "매집가", "청산가", "조마진%", "순이익%", "체결량",
            "순이익 ISK", "묶인 자본", "단위부피 m³", "총부피 m³", "ISK/m³", "필요 운항",
-           "1회 운항 이익", "일평균 거래량", "소요일", "매도호가 유지 h", "매수호가 유지 h"]
+           "1회 운항 이익", "셀오더 총량", "10일 거래량", "셀오더/거래량", "소요일",
+           "매도호가 유지 h", "매수호가 유지 h"]
 SRC = ["item", "pair", "pattern", "direction", "buy_avg", "sell_avg", "gross_pct", "net_pct",
        "qty", "profit", "capital", "unit_volume", "volume_m3", "isk_per_m3", "trips",
-       "profit_per_trip", "daily_volume", "days_to_sell", "ask_age_h", "bid_age_h"]
+       "profit_per_trip", "sell_queue_qty", "daily_volume", "sell_queue_days", "days_to_sell",
+       "ask_age_h", "bid_age_h"]
 # 표는 **숫자를 숫자로** 실는다 — 문자(1,141)로 포맷하면 UI 헤더클릭 정렬이
 # 문자열 정렬로 새버려서 순서가 이상해진다. 표시 자릿수만 여기서 잡는다.
 DECIMALS = {
     "매집가": 2, "청산가": 2, "조마진%": 2, "순이익%": 2,
     "체결량": 0, "순이익 ISK": 0, "묶인 자본": 0,
     "단위부피 m³": 3, "총부피 m³": 0, "ISK/m³": 0,
-    "필요 운항": 0, "1회 운항 이익": 0, "일평균 거래량": 0,
+    "필요 운항": 0, "1회 운항 이익": 0,
+    "셀오더 총량": 0, "10일 거래량": 0, "셀오더/거래량": 2,
     "소요일": 2, "매도호가 유지 h": 0, "매수호가 유지 h": 0,
 }
 
@@ -219,18 +222,17 @@ def render_basket(box, rows_map: dict, names: set):
 def show_rows(rows: list[dict], title: str):
     if not rows:
         st.info(f"{title}: 조건을 통과한 아비가 없습니다.")
-        return
-    # 3단계 고정: ① ISK/m³ 내림차순 ② 순이익 내림차순 ③ 묶인 자본 오름차순
-    rows = sorted(rows, key=lambda d: (-(d["isk_per_m3"] or 0), -d["profit"], d["capital"]))
-    rows = [r for r in rows if r["isk_per_m3"] is not None]
-    st.caption(f"{len(rows)}행 전체 · 정렬: **① ISK/m³↓ ② 순이익↓ ③ 묶인자본↑** — "
+        return rows
+    # 네 자리 지킨 순서 — 앞의 것이 같을 때만 뒤를 본다
+    rows = sort_rows(rows, cfg["sort"], cfg["tol"])
+    st.caption(f"{len(rows)}행 전체 · 정렬: **{cfg['sort']}** — "
                "**아무 열 머리말이나 누르면 그 열로 바로 정렬됩니다**")
     st.caption("🛒 **장바구니**: 표 왼쪽 체크박스를 고르거나 **행을 아무 데나 클릭** — "
                "머리칸 체크박스는 전체 담기입니다")
     tbl = to_table(rows)
     names = list(tbl["종목"])
     pinned = st.session_state.get("pinned", set())
-    cfg = {c: st.column_config.NumberColumn(format="localized") for c in DECIMALS}
+    col_cfg = {c: st.column_config.NumberColumn(format="localized") for c in DECIMALS}
     # 행 선택형 표 — 체크박스 칸이 아니라 행 통째가 클릭 면적이고
     # 헤 칸 체크박스는 전체 선택이다. 클릭이 관대하고 첫 클릭이 안 새는 일도 없다.
     key = f"tbl_{title}"
@@ -249,7 +251,7 @@ def show_rows(rows: list[dict], title: str):
     st.dataframe(
         tbl, key=key, hide_index=True, width="stretch",
         height=min(1200, 34 * (len(tbl) + 2)),
-        column_config=cfg, selection_mode="multi-row", on_select=_on_sel)
+        column_config=col_cfg, selection_mode="multi-row", on_select=_on_sel)
     if st.session_state.pop(hit, False):
         # 위젯 상태는 dict — 키("rows")로 읽어야 한다 (속성 아님!)
         sel = (st.session_state.get(key) or {}).get("selection") or {}
@@ -286,7 +288,7 @@ def sidebar():
         st.sidebar.toast("캐시를 비웠습니다")
     workers = st.sidebar.slider("ESI 워커", 2, 16, 8, help="크면 ESI 트로틀링에 걸릴 수 있다")
     all_cand = st.sidebar.toggle("전체 후보 (무제한)", value=True,
-                                 help="조마진금액이 있는 교차 종목 + 내부 역전을 전부 후보에 담는다")
+                                 help="A/B(사고팔기)나 C/D(매도↔매도)에 조마진 금액이 나는 종목, 그리고 한 스테이션에서 매수호가와 매도호가가 뒤집힌 종목을 모두 후보에 담는다")
     max_cand = 10 ** 9 if all_cand else st.sidebar.slider("후보 종목 수", 100, 5000, 1000, step=100)
     get_meta = st.sidebar.toggle("부피·일평균 거래량 조회", value=True)
 
@@ -364,6 +366,10 @@ def sidebar():
                        "대신 판매세는 무조건 붙는다 — 2025-03부터 기본 7.5% (Accounting Lv5면 3.4%)")
     sell_market = st.sidebar.toggle("판매 창을 즉시판매 (시장가)로 가정", value=True,
                                     help="켜면 판매세만, 끄면 지정가 대분으로 브로커 수수료가 더해진다")
+    # C/D는 파는 편이 늘 **매도 지정가**다 — 위 토글과 상관없이 브로커 수수료를 무조건 물린다
+    broker_cd = st.sidebar.number_input(
+        "C/D 매도 브로커 수수료 %", 0.0, 10.0, 4.0, step=0.1,
+        help="C/D는 내 매도호가를 창에 걸어서 팔므로 브로커 수수료가 늘 있다. 기본 4%. A/B의 판매에는 달지 않는다.")
     fees = dict(PRESETS)
     custom = st.sidebar.checkbox("직접 지정")
     if custom:
@@ -374,7 +380,7 @@ def sidebar():
         sbrk = c3.number_input("판매 브로커 %", 0.0, 10.0, 3.0, step=0.1) / 100
         fees[f"사용자 ({buy*100:.1f}%/세{stax*100:.1f}%/브{sbrk*100:.1f}%)"] = {
             "buy": buy, "sell_tax": stax, "broker_sell": sbrk}
-    # 기준 표는 Accounting Lv5 프리셋 하나로 (나머지는 비교용으로 체크해서 �쳐보기)
+    # 기준 표는 Accounting Lv5 프리셋 하나로 (나머지는 비교용으로 체크해서 쳐보기)
     acct5 = next(k for k in PRESETS if k.startswith("Accounting"))
     presets = st.sidebar.multiselect("수수료 프리셋", list(fees), default=[acct5])
     cargo = st.sidebar.number_input("1회 적재 가능 부피 (m³)", 100, 1_000_000, 534_000, step=1000,
@@ -385,11 +391,19 @@ def sidebar():
     min_pct = st.sidebar.number_input("최소 순이익 %", 0.0, 100.0, 1.0, step=0.5)
     min_profit = st.sidebar.number_input("최소 순이익 ISK", 0, 10_000_000_000, 0, step=100_000)
     min_cap = st.sidebar.number_input("최소 묶인 자본 ISK", 0, 10_000_000_000, 0, step=1_000_000)
-    min_dv = st.sidebar.number_input("최소 일평균 거래량", 0, 1_000_000, 0, step=100)
+    min_dv = st.sidebar.number_input("최소 10일 평균 거래량", 0, 1_000_000, 0, step=100)
+    max_qd = st.sidebar.number_input(
+        "셀오더/거래량 걸림 (일)", 0.0, 3650.0, 0.0, step=1.0,
+        help="팔 창에 물린 총량이 하루 평균 거래의 며칠치인지. 작을수록 팔 데가 있다. 0은 끄기.")
+    sort_key = st.sidebar.selectbox("표 정렬", list(SORTS), index=0)
+    tol = st.sidebar.slider(
+        "순이익 같은 걸로 보는 간격 (%)", 0, 50, 0, step=5,
+        help="이 비율 안쪽인 순이익은 같다고 보고 다음 자리(묶인 돈·부피·셀오더/거래량)로 가린다. 0이면 있는 그대로.")
     patterns = st.sidebar.multiselect("패턴", list("ABCD"), default=list("ABCD"))
     return dict(scan_now=scan_now, workers=workers, max_cand=max_cand, get_meta=get_meta,
-                fees=fees, presets=presets, cargo=cargo, min_pct=min_pct,
-                min_profit=min_profit, market_sell=sell_market, hubs=hub_sel,
+                fees=fees, presets=presets, cargo=cargo, min_pct=min_pct, sort=sort_key,
+                tol=tol / 100, broker_cd=broker_cd,
+                min_profit=min_profit, market_sell=sell_market, hubs=hub_sel, max_qd=max_qd,
                 min_cap=min_cap, min_dv=min_dv, patterns=set(patterns))
 
 
@@ -420,7 +434,8 @@ def show_book(scan: dict, meta: dict, tid: int):
 
 # --------------------------------------------------------------- 본문
 st.title("📈 Jita 4-4 ↔ Amarr · Dodixie · Rens 아비 대시보드")
-st.caption("패턴 A/B: 허브 간 운송 아비 · C/D: 같은 스테이션 내부 스프레드 (운송 0, 부피 무의미)")
+st.caption("패턴 A/B: 한곳에서 사서 다른곳에 파는 운송 아비 · 패턴 C/D: 두 허브의 **매도창끼리** 민다 "
+           "(한쪽 매도호가에 사서 다른쪽 매도호가에 팔기 — 네 패턴 모두 운송 O)")
 
 cfg = sidebar()
 LOG: list[str] = []
@@ -442,10 +457,11 @@ meta = st.session_state.get("meta", {})
 hist = st.session_state.get("hist", {})
 st.sidebar.success(f"스캔 {scan['at'].astimezone().strftime('%H:%M:%S')} · {len(scan['books'])}종목")
 
-# 즉시판매(시장가)면 판매 브로커 수수료 없음 — 판매세만 붙는다
+# 즉시판매(시장가)면 판매 브로커 수수료 없음 — 판매세만 붙는다. C/D는 예외 — 판다 하면 매도 지정가다.
 sell_fee_of = {p: (cfg["fees"][p]["sell_tax"] if cfg["market_sell"]
                    else cfg["fees"][p]["sell_tax"] + cfg["fees"][p]["broker_sell"])
                for p in cfg["presets"]}
+sell_fee_cd = {p: cfg["fees"][p]["sell_tax"] + cfg["broker_cd"] for p in cfg["presets"]}
 rows: dict[str, list] = {p: [] for p in cfg["presets"]}
 blocked = st.session_state.get("blocked_merged", {"ids": set(), "names": set()})
 skipped = 0
@@ -464,7 +480,7 @@ for tid, books in scan["books"].items():
             rows[pname] += analyze_type(
                 tid, m["name"], mv, books["Jita"], b_hub,
                 fees["buy"], sell_fee_of[pname], hist.get(tid, 0.0), cfg["cargo"],
-                hub_b=hub)
+                hub_b=hub, sell_fee_cd=sell_fee_cd[pname])
 if skipped:
     st.sidebar.caption(f"🚫 낚시물 {skipped}종목은 걸렀다")
 
@@ -479,37 +495,68 @@ if st.button("🧹 장바구니 비우기", key="clear_basket",
     pass
 render_basket(basket_box, rows, st.session_state.get("pinned", set()))
 
-body = st.tabs(["🔀 크로스 아비 (A/B)", "🏪 내부 스프레드 (C/D)", "🃀 전체 통합",
-                "📊 페어 비교", "🔬 종목 상세"])
+# ---- 네 패턴을 탭으로 ─────────────────────────────────────────────────────────────
+# 라벨에 붙는 허브 이름 — 한 쌍만 고르면 그 이름을 쓴다.
+hubs_sel = list(scan["hubs"][1:])
+H = hubs_sel[0] if len(hubs_sel) == 1 else "허브"
+PANELS = {
+    "A": {"tab": f"🅰 {H}→Jita · 매수창에 판매",
+          "why": f"**{H}의 싼 매도창**에서 사서 **Jita의 비싼 매수창**에 파넘긴다. "
+                 "받는 쪽이 매수창(받치는 쪽)이니 판매 브로커 수수료는 없다 — 판매세만."},
+    "B": {"tab": f"🅱 Jita→{H} · 매수창에 판매",
+          "why": f"**Jita의 싼 매도창**에서 사서 **{H}의 비싼 매수창**에 파넘긴다. "
+                 "받는 쪽이 매수창이니 판매 브로커 수수료는 없다 — 판매세만."},
+    "C": {"tab": f"🅲 {H}→Jita · 매도↔매도",
+          "why": f"**{H} 매도창**에서 사서 **Jita 매도창에 이름을 걸어** 파는 것이다. "
+                 "양 창에 물린 매도호가만 세니 표시한 수량이 당장 사고팔 수 있는 양이고, "
+                 "파는 쪽이 **매도 지정가**이므로 판매세에 더해 브로커 수수료(기본 4%, 사이드바)를 무조건 붙였다."},
+    "D": {"tab": f"🅳 Jita→{H} · 매도↔매도",
+          "why": f"**Jita 매도창**에서 실어서 **{H}의 비싼 매도창에 이름을 걸어** 파는 것. "
+                 "C의 반대 방향이고, 같은 이유로 **브로커 수수료가 무조건** 있다. "
+                 "화물을 싣고 가니 부피·ISK/m³ 도 그대로 유효하다."},
+}
+body = st.tabs([PANELS[p]["tab"] for p in "ABCD"]
+               + ["🃀 네 패턴 통합", "📊 페어 비교", "🔬 종목 상세"])
 
 
 def filt(rows_: list, pat: set) -> list:
-    return filter_rows(rows_, cfg["min_pct"], cfg["min_profit"], cfg["min_cap"],
-                       cfg["min_dv"], pat)
+    out = filter_rows(rows_, cfg["min_pct"], cfg["min_profit"], cfg["min_cap"],
+                      cfg["min_dv"], pat)
+    if cfg["max_qd"] > 0:      # 셀오더 대비 거래량이 걸은 것만
+        out = [r for r in out
+               if r["sell_queue_days"] is not None and r["sell_queue_days"] <= cfg["max_qd"]]
+    return out
 
 
-with body[0]:
-    for pname, v in rows.items():
+def panel(pat: str):
+    """한 패턴 판 — 통과한 행이 없으면 왜 없는 지 집어준다."""
+    keep = {p: filt(v, {pat} & cfg["patterns"]) for p, v in rows.items()}
+    if not any(keep.values()):
+        if pat not in cfg["patterns"]:
+            st.info(f"사이드바 ‘패턴’에서 **{pat}**가 꺼져 있다.")
+        else:
+            st.info(f"{pat}를 지나는 게 하나도 없다. 「최소 순이익 %」를 0까지 내리거나 짝을 늘려라.")
+    for pname in rows:
         st.subheader(pname)
-        show_rows(filt(v, {"A", "B"} & cfg["patterns"]), f"cross_{pname[:12]}")
-with body[1]:
-    st.caption("운송이 없어 부피 제약이 걸리지 않는다. 같은 스테이션에서 매수호가가 매도호가보다 올라갈 때만 뜬다.")
-    if not any(filter_rows(v, cfg["min_pct"], cfg["min_profit"], cfg["min_cap"],
-                           cfg["min_dv"], {"C", "D"} & cfg["patterns"]) for v in rows.values()):
-        st.info("지금 수수료 설정에서 내부 역전가 없다. 수수료 프리셋을 『검토(0%)』로 바꾸거나 "
-                "최소 순이익 %를 0으로 내려라.")
+        show_rows(keep[pname], f"p{pat}_{pname[:12]}")
+
+
+for i, pat in enumerate("ABCD"):
+    with body[i]:
+        st.caption(PANELS[pat]["why"])
+        panel(pat)
+
+# ---- 네 패턴을 한 자리
+with body[4]:
+    st.caption("여러 패턴(A/B/C/D)을 한 자리에 — 정순은 위 판과 같다.")
+    for pname in rows:
+        st.subheader(f"{pname} · 네 패턴 통합")
+        show_rows(filt(rows[pname], set(cfg["patterns"])), f"all_{pname[:12]}")
+with body[5]:
+    st.caption("네 패턴(A/B와 C/D)을 다 세었습니다 — C/D는 두 허브 매도창끼리니 쌍의 수익이 된다. "
+               "합순이익 내림차순이라, 어느 쌍이 실제로 남는지 맨 위가 말한다.")
     for pname, v in rows.items():
-        st.subheader(pname)
-        show_rows(filt(v, {"C", "D"} & cfg["patterns"]), f"internal_{pname[:12]}")
-with body[2]:
-    for pname, v in rows.items():
-        st.subheader(pname)
-        show_rows(filt(v, set(cfg["patterns"])), f"all_{pname[:12]}")
-with body[3]:
-    st.caption("운송 아비(A/B)만 세었습니다 — C/D는 한 스테이션 내부 일이라 쌍의 수익에 넣지 않았습니다. "
-               "합순이익 내림차순이라, 어느 쌍이 실제로 남는지 맨 위가 말합니다.")
-    for pname, v in rows.items():
-        summ = pair_summary(filt(v, {"A", "B"} & cfg["patterns"]))
+        summ = pair_summary(filt(v, set(cfg["patterns"])))
         st.subheader(pname)
         if not summ:
             st.info("조건을 통과한 운송 아비가 없습니다.")
@@ -520,7 +567,7 @@ with body[3]:
              "최고 효율 종목": s["최고_종목"], "최고 순익 종목": s["최고_순익종목"]}
             for p, s in sorted(summ.items(), key=lambda kv: -kv[1]["합순이익"])]),
             hide_index=True, width="stretch")
-with body[4]:
+with body[6]:
     names = {tid: meta.get(tid, {}).get("name", f"type {tid}") for tid in scan["books"]}
     pick = st.selectbox("종목", list(names), format_func=lambda t: names[t])
     show_book(scan, meta, pick)

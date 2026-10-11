@@ -205,9 +205,9 @@ def fetch_type_meta(type_ids: list[int], progress=None) -> dict[int, dict]:
     return out
 
 
-def fetch_histories(region: int, type_ids: list[int], days: int = 30,
+def fetch_histories(region: int, type_ids: list[int], days: int = 10,
                     progress=None) -> dict[int, float]:
-    """최근 days 일 평균 거래량 (전 리전 체결 기준)."""
+    """최근 days 일 평균 거래량 (전 리전 체결 기준). 기본은 열흘 새 평균."""
     end = datetime.now(timezone.utc).date()
     start = end - timedelta(days=days)
     out: dict[int, float] = {}
@@ -218,7 +218,7 @@ def fetch_histories(region: int, type_ids: list[int], days: int = 30,
                 f"/latest/markets/{region}/history/",
                 params={"type_id": tid, "dates_from": start.isoformat(),
                         "dates_to": end.isoformat()},
-                cache_key=f"hist_{region}_{tid}")
+                cache_key=f"hist_{days}_{region}_{tid}")
         except ESIRateLimited:
             return tid, []
         return tid, [h.get("volume", 0) for h in body if h.get("volume")]

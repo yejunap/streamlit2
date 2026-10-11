@@ -22,7 +22,7 @@ freshen.freshen_modules(_HERE)                              # 고친 코드 바�
 import esi                                                 # noqa: E402
 from arb_core import (PRESETS, SORTS, analyze_type, candidate_scores, clear_basket_state,  # noqa: E402
                       commit_blocklist, filter_rows, internal_inversions, is_blocked,
-                      load_blocklist, pair_summary, parse_block_add, sort_rows)
+                      load_blocklist, pair_summary, parse_block_add, sell_fee_cd_of, sort_rows)
 
 BLOCK_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "blocklist.json")
 
@@ -461,7 +461,7 @@ st.sidebar.success(f"스캔 {scan['at'].astimezone().strftime('%H:%M:%S')} · {l
 sell_fee_of = {p: (cfg["fees"][p]["sell_tax"] if cfg["market_sell"]
                    else cfg["fees"][p]["sell_tax"] + cfg["fees"][p]["broker_sell"])
                for p in cfg["presets"]}
-sell_fee_cd = {p: cfg["fees"][p]["sell_tax"] + cfg["broker_cd"] for p in cfg["presets"]}
+sell_fee_cd = {p: sell_fee_cd_of(cfg["fees"][p], cfg["broker_cd"]) for p in cfg["presets"]}
 rows: dict[str, list] = {p: [] for p in cfg["presets"]}
 blocked = st.session_state.get("blocked_merged", {"ids": set(), "names": set()})
 skipped = 0

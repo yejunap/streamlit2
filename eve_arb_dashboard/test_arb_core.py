@@ -133,6 +133,22 @@ for p in ("C", "D"):
 for p in ("A", "B"):
     assert fee4[p]["profit"] == base[p]["profit"], p      # A/B는 만지지자
 
+# 6-3) 사이드바는 브로커 수수료를 %(원값 4.0)로 준다 — 안 나누면 403%가 되어 C/D가 영원히 비었다
+from arb_core import PRESETS, sell_fee_cd_of
+_acct5 = next(k for k in PRESETS if k.startswith("Accounting"))
+_fee_cd = sell_fee_cd_of(PRESETS[_acct5], 4.0)
+assert abs(_fee_cd - 0.07375) < 1e-9, _fee_cd                        # 3.375% + 4%
+_cd = analyze_type(34, "X", 0.01,
+                   {"sells": [(1_000_000.0, 500, None)], "buys": []},   # Jita 매도창이 비싸다
+                   {"sells": [(900_000.0, 500, None)], "buys": []},     # 허브가 싸다 → C가 서야 한다
+                   0.0, 0.03375, 100, 40_000, sell_fee_cd=_fee_cd)
+assert {r["pattern"] for r in _cd} == {"C"}, _cd
+# 앱이 이 함수를 타는지 — 문자 더하기 버그가 그 자리로 되살아나면 안 된다
+import pathlib
+_src = pathlib.Path(__file__).with_name("app.py").read_text(encoding="utf-8")
+assert 'sell_fee_cd_of(cfg["fees"][p], cfg["broker_cd"])' in _src, "앱의 C/D 요금 연결이 달라졌다"
+print("💰 C/D 수수료 %→비율 ok — 4%면 0.07375, C가 선다")
+
 # 7) 정렬: 총부피가 크면 앞으로, 부피 없음은 맨 뒤로
 from arb_core import RANKERS
 big = {"qty": 1, "volume_m3": 2166.0, "profit": 1, "isk_per_m3": None, "profit_per_trip": None}

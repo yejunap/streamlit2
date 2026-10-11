@@ -103,6 +103,15 @@ PRESETS = {
 }
 
 
+def sell_fee_cd_of(fee_preset: dict, broker_pct: float) -> float:
+    """C/D는 파는 편이 늘 매도 지정가 — 판매세에 브로커 수수료를 무조건 얹는다.
+
+    broker_pct는 사이드바가 주는 **퍼센트** 원값(4.0면 4%) — 안에서 비율로 나눈다.
+    %를 안 나누면 수수료가 403%가 되어 C/D가 영원히 안 뜨던 적이 있다.
+    """
+    return fee_preset["sell_tax"] + broker_pct / 100
+
+
 def patterns_for(hub_b: str) -> dict:
     """두 번째 허브 이름에 맞춘 패턴 라벨 — 쌍이 바뀌면 라벨만 달라진다.
 

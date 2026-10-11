@@ -45,8 +45,17 @@ def region_pages(region: int) -> int:
     return int(hdrs.get("X-Pages", 1))
 
 
-class ESIRateLimited(Exception):
-    pass
+class ESIError(Exception):
+    """ESI 를 끝까지 못 받았다."""
+
+
+class ESIRateLimited(ESIError):
+    """420/429 · 5xx — 걸린 것이다. 뒤에 다시 하면 된다."""
+
+
+class ESINoData(ESIError):
+    """404 — 그 종의 데이터가 아 없다 (예: 거래 실적이 없는 종의 history).
+    재시도로 안 좋아지니 그냥 없는 셈 친다."""
 
 
 _SESSION = None
@@ -105,10 +114,18 @@ def get(path: str, params: dict | None = None, cache_key: str | None = None,
             time.sleep(min(max(asked, 10 * (attempt + 1)), 30))
             last_err = ESIRateLimited(f"ESI rate limited ({r.status_code})")
             continue
-        if r.status_code == 503:
+        if r.status_code >= 500:
+            # 500/502/503/504 — ESI 단골이다. 참았다 다시 한다 (429와 같이 기운을 둔다)
             time.sleep(2 + attempt * 2)
+            last_err = ESIRateLimited(f"ESI {r.status_code} for {path}")
             continue
-        r.raise_for_status()
+        if r.status_code == 404:
+            # 그 종의 것이 아 없다 — history 없는 종목이 달하는 자리다. 세게 안 당기고 제린다.
+            raise ESINoData(f"ESI 404 for {path}")
+        try:
+            r.raise_for_status()
+        except requests.HTTPError as e:
+            raise ESIRateLimited(f"ESI failed for {path}: {e}") from e
         body = r.json()
         if cache_key and r.headers.get("ETag"):
             _save_etag(cache_key, r.headers["ETag"], body)
@@ -196,6 +213,8 @@ def fetch_type_meta(type_ids: list[int], progress=None) -> dict[int, dict]:
                              "name": body.get("name", f"type {tid}")}
             except ESIRateLimited:
                 time.sleep(2.0)
+            except ESIError:
+                break		# 404 — 없다니 다시 따질 것 없다
         return tid, {"volume": 0.0, "name": f"type {tid}"}
 
     with ThreadPoolExecutor(max_workers=10) as pool:
@@ -219,7 +238,9 @@ def fetch_histories(region: int, type_ids: list[int], days: int = 10,
                 params={"type_id": tid, "dates_from": start.isoformat(),
                         "dates_to": end.isoformat()},
                 cache_key=f"hist_{days}_{region}_{tid}")
-        except ESIRateLimited:
+        except ESIError:
+            # 404(거래 실적 없는 종) · 429 · 5xx — 하나가 죽었다 고 전체 스캔이 서면 안 된다.
+            # 거래량 모름으로 두고 표에서 맨 뒤로 가게 한다.
             return tid, []
         return tid, [h.get("volume", 0) for h in body if h.get("volume")]
 

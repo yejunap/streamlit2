@@ -57,11 +57,12 @@ s = match_sell_ladder([(100.0, 500, None)], [(130.0, 100, None)], 0.0, 0.0)
 assert s["qty"] == 100.0, s                       # 사던 양은 500이지만 팔 데가 100뿐
 assert s["profit"] == 100 * (130.0 - 100.0), s
 assert s["buy_avg"] == 100.0 and s["sell_avg"] == 130.0
-# 두 창을 번갈아 갚는다 — 사던 창·파는 창 다 한 칸씩 내려간다
+# 창이 두 칸이어도 **청산가는 최우선 매도가 한 칸**이다 — 깊은 칸의 140은 남의 물인지라 못 판다
 s = match_sell_ladder([(100.0, 100, None), (110.0, 100, None)],
                       [(130.0, 100, None), (140.0, 100, None)], 0.0, 0.0)
 assert s["qty"] == 200.0, s
-assert s["profit"] == 100 * 30 + 100 * 30, s      # (130-100) + (140-110)
+assert s["sell_avg"] == 130.0, s                          # 두 칸 다 판다 쳐도 둘 다 130에 건다
+assert s["profit"] == 200 * 130.0 - (100 * 100 + 100 * 110), s   # 5000 (예전 창가 버그는 6000)
 # 매도호가보다 매수호가가 비싸면(살 데가 없으면) 체결 없음
 assert match_sell_ladder([(130.0, 100, None)], [(100.0, 100, None)], 0.0, 0.0)["qty"] == 0
 # 수수료 15%를 견기지 못하면 멈춘다 — 100에 사서 110에 팔아도 남는 게 없다
@@ -126,12 +127,32 @@ def _four(fee_cd):
 base = _four(0.03375)
 fee4 = _four(0.03375 + 0.04)
 assert set(base) == {"A", "B", "C", "D"}, sorted(base)
-for p in ("C", "D"):
-    # 브로커 4%는 팔물 전체에 준다 → 빠진 돈은 4% × (체결량 × 팔가)
-    rev = base[p]["qty"] * base[p]["sell_avg"]
-    assert round(fee4[p]["profit"], 2) == round(base[p]["profit"] - rev * 0.04, 2), p
+# 브로커 4%를 얹으면 비싼 살 칸이 미달로 떨어져 체결량이 준다 — 청산가는 최우선 매도가 한 칸
+assert base["C"]["sell_avg"] == 3.3 and fee4["C"]["qty"] < base["C"]["qty"], (base["C"], fee4["C"])
 for p in ("A", "B"):
     assert fee4[p]["profit"] == base[p]["profit"], p      # A/B는 만지지자
+
+
+# 브로커 4%는 팔물 전체에 준다 → 빠진 돈은 4% × (체결량 × 팔가).
+# 창이 곱직해 수수료가 해도 체결량 같은 판에서 본다.
+J_WIDE = {"sells": [(10.0, 10, None), (10.1, 10, None)], "buys": [(9.9, 10, None)]}
+AM_WIDE = {"sells": [(5.0, 10, None), (5.1, 10, None)], "buys": [(5.0, 10, None)]}
+
+
+def _wide(fee):
+    out = {}
+    for a, b in ((J_WIDE, AM_WIDE), (AM_WIDE, J_WIDE)):
+        out.update({r["pattern"]: r for r in analyze_type(
+            34, "Trit", 0.01, a, b, 0.0, 0.03375, 0, 40_000, hub_b="Amarr", sell_fee_cd=fee)})
+    return out
+
+
+wide_lo, wide_hi = _wide(0.03375), _wide(0.03375 + 0.04)
+for p in ("C", "D"):
+    assert wide_lo[p]["qty"] == wide_hi[p]["qty"] == 20.0, p
+    assert wide_lo[p]["sell_avg"] == 10.0, p               # 청산가는 최우선 매도가다
+    rev = wide_lo[p]["qty"] * wide_lo[p]["sell_avg"]
+    assert round(wide_hi[p]["profit"], 2) == round(wide_lo[p]["profit"] - rev * 0.04, 2), p
 
 # 6-3) 사이드바는 브로커 수수료를 %(원값 4.0)로 준다 — 안 나누면 403%가 되어 C/D가 영원히 비었다
 from arb_core import PRESETS, sell_fee_cd_of

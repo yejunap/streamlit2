@@ -230,45 +230,42 @@ def match_sell_ladder(buy_asks: list, sell_asks: list,
                       buy_fee: float, sell_fee: float) -> dict:
     """매도 ↔ 매도 — 한 창에서 사서(매도호가 소진) 다른 창에 파는(매도호가 소진) 계산.
 
-    두 편 다 **매도 호가 창**이다. 전의 C/D(한 스테이션 호가 뒤집힘)와 달라,
-    창을 맞물게 기어간다 — 파는 편 창가의 한 칸은 그 칸에 물린 물량만큼만 받아 준다.
-    (그 이상은 창에 없는 가격에 거는 일 — 지정가대기가 되어 계산 밖으로 버린다)
-    한 칸의 한계이익이 0 이하로 떨어지면 멈춘다(호가 거리가 크지 않으므로 단조롭다).
+    두 편 다 **매도 호가 창**이다. 사는 편만 칸을 올려가며 소진하고, 파는 편은
+    **최우선 매도가 한 칸**으로 센다 — 창이 두 칸이라 깊은 칸의 비싼 매도가까지
+    내 청산가로 쳐서는 안 된다.
+    (예전엔 두 창을 맞물게 걸어 그걸 다 된 걸로 셈다. 그래서 C/D의 수익이 부풀고
+    체결량이 없댰졌다.) 내 매도가에 걸린 물량은 다 쓸 수 있어야 하므로 팔 곳의
+    전 매도창 물량을 상한으로 삼고, 살 칸이 그 매도가를 넘기면 멈춘다.
     """
-    ai = bi = aq = bq = 0
-    qty = cost = rev = 0.0
-    n_buy, n_sell = len(buy_asks), len(sell_asks)
-    while ai < n_buy and bi < n_sell:
-        pa, qa, _ = buy_asks[ai]
-        ps, qs, _ = sell_asks[bi]
-        if ps * (1 - sell_fee) <= pa * (1 + buy_fee):
-            break
-        take = min(qa - aq, qs - bq)
+    if not sell_asks or not buy_asks:
+        return {"qty": 0.0, "buy_avg": 0.0, "sell_avg": 0.0, "cost": 0.0,
+                "revenue": 0.0, "profit": 0.0, "net_pct": 0.0, "gross_pct": 0.0}
+
+    # 청산가는 **최우선 매도가 한 칸뿐**이다. 두 매도창을 칸 맞추어 걸어서 깊은 (비싼)
+    # 칸까지 내린 것 쳐셈 — 창 깊이가 다른 한 편의 창가에 물린 물량이라 나에게는 없다.
+    # (이 버그로 C/D의 청산가가 부풀어 올라 수익성은 있고 물량은 말라 보였다.)
+    sell_price = sell_asks[0][0]
+    dest_vol = sum(q for _, q, _ in sell_asks)          # 내가 팔 자리의 전 매도창
+    qty = cost = 0.0
+    for pa, qa, _ in buy_asks:
+        if sell_price * (1 - sell_fee) <= pa * (1 + buy_fee):
+            break                                        # 살 칸이 비싸져서 남는 게 없다
+        take = min(qa, dest_vol - qty)                   # 팔 창이 남은 만큼만
+        # 살 칸이 남았어도 팔 자식이 다 찼으면 여기가 끝
         if take <= 0:
-            if aq >= qa:
-                ai += 1
-                aq = 0
-            if bq >= qs:
-                bi += 1
-                bq = 0
-            continue
+            break
         qty += take
         cost += take * pa
-        rev += take * ps
-        aq += take
-        bq += take
-        if aq >= qa:
-            ai += 1
-            aq = 0
-        if bq >= qs:
-            bi += 1
-            bq = 0
+        if take < qa:
+            break
 
     if qty <= 0:
         return {"qty": 0.0, "buy_avg": 0.0, "sell_avg": 0.0, "cost": 0.0,
                 "revenue": 0.0, "profit": 0.0, "net_pct": 0.0, "gross_pct": 0.0}
 
-    buy_avg, sell_avg = cost / qty, rev / qty
+    buy_avg = cost / qty
+    rev = qty * sell_price                               # 두 칸 다 매도가 → 그 가격으로 친다
+    sell_avg = sell_price
     net_rev, net_cost = rev * (1 - sell_fee), cost * (1 + buy_fee)
     gross = (sell_avg / buy_avg - 1) * 100 if buy_avg else 0.0
     net = (net_rev / net_cost - 1) * 100 if net_cost else 0.0

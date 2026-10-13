@@ -69,6 +69,44 @@ def commit_blocklist(content: str, token: str, repo: str,
         return f"깃 고장 — {e}"
 
 
+# ---- 🛒 장바구니 -----------------------------------------------------------------------------
+# 체크한 표가 몇 시의 어느 패턴인 박아 둔다(row_uid). 예전처럼 종목 이름만 적으면
+# 합산기가 프리셋·패턴 막론하고 이익 큰 행을 빼 온다 — 수수료가 없는 「검토」 프리셋이
+# 매번 이겨서 장바구니가 다 부풀어 오른다. 그래서 고른 **행 자체**를 세긴다.
+UID_SEP = "\u241f"          # 종목 이름에는 안 올 자리표시자
+
+
+def row_uid(r: dict, preset: str) -> str:
+    """한 표의 행 하나를 집는 신분 — 같은 종목이 프리셋·패턴·쌍에 걸쳐 여럿이다."""
+    return UID_SEP.join([preset, r["pattern"], r["pair"], r["item"]])
+
+
+def basket_totals(rows_map: dict, picked: set) -> dict:
+    """체크한 행을 그대로 더한다 — 없음이면 세지 않고 세어 본 것을 따로 알린다."""
+    chosen, stale = [], 0
+    for uid in picked:
+        preset, pattern, pair, item = split_uid(uid)
+        hit = None
+        for r in rows_map.get(preset, []):
+            if (r["pattern"], r["pair"], r["item"]) == (pattern, pair, item):
+                hit = r
+                break
+        if hit is None:
+            stale += 1                     # 되스캔 후 사라진 것
+        else:
+            chosen.append(hit)
+    return {"rows": len(chosen), "stale": stale,
+            "volume_m3": sum(r["volume_m3"] or 0 for r in chosen),
+            "capital": sum(r["capital"] for r in chosen),
+            "profit": sum(r["profit"] for r in chosen),
+            "items": sorted({r["item"] for r in chosen})}
+
+
+def split_uid(uid: str) -> tuple:
+    parts = uid.split(UID_SEP, 3)
+    return tuple(parts) if len(parts) == 4 else ("", "", "", uid)   # 예전 것(이름뿐)
+
+
 # ---- 🧹 장바구니 비우기 --------------------------------------------------------------------------
 # 장바구니(pinned)와 표의 체크는 저장소가 두 곳이다: 체크는 st.dataframe 위젯 상태(tbl_ 키)에 산다.
 # pinned만 비우면 화면의 체크는 그대로 남고, 더 나쁘게 그 다음 체크 소리에

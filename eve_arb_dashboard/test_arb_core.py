@@ -21,6 +21,25 @@ assert "seeded_cross_X" not in _ss and "selhit_cross_X" not in _ss
 assert _ss["block_off"] is True                      # 풀어 둔 표시 같은 건 건드리지 않는다
 print("🧹 장바구니 비우기 ok — 체크도 함께 비워짐")
 
+# 0-3) 🛒 장바구니 — **체크한 행 그 자체**를 센다. 종목 이름만 적으면 수수료가 없는
+#      「검토」 프리셋의 행이 늘 이겨 합산이 다 부풀어 올랐다(모두 과대해진다).
+from arb_core import basket_totals, row_uid
+_r5 = {"pattern": "A", "pair": "Jita↔Amarr", "item": "T", "volume_m3": 10.0,
+       "capital": 100.0, "profit": 10.0}
+_r0 = dict(_r5, profit=999.0, capital=1.0, volume_m3=100.0)     # 수수료가 없어 늘 이기는 행
+_map = {"Accounting5": [_r5], "검토 (수수료 0% — 호가 역전만)": [_r0]}
+t = basket_totals(_map, {row_uid(_r5, "Accounting5")})
+assert t["profit"] == 10.0 and t["capital"] == 100.0 and t["volume_m3"] == 10.0, t
+t2 = basket_totals(_map, {row_uid(_r0, "검토 (수수료 0% — 호가 역전만)")})
+assert t2["profit"] == 999.0, t2                                # 살핀 대로 걷는다
+assert basket_totals(_map, set())[
+    "rows"] == 0                                                #빈 것은 조용
+both = basket_totals(_map, {row_uid(_r5, "Accounting5"),
+                            row_uid(_r0, "검토 (수수료 0% — 호가 역전만)")})
+assert both["rows"] == 2 and both["profit"] == 1009.0, both      # 둘 다 체크했으면 둘 다
+assert basket_totals(_map, {"Tritanium"})["stale"] == 1          # 옛것(이름뿐)은 세지 않는다
+print("🛒 장바구니 ok — 체크한 행만 센다, 검토 프리셋이 몰래 이기지 않는다")
+
 # 1) 한계이익이 음수가 되면 멈춘다
 asks = [(90.0, 100, None), (95.0, 100, None), (99.0, 100, None)]
 bids = [(120.0, 50, None), (110.0, 50, None)]

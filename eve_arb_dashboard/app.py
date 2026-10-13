@@ -20,9 +20,10 @@ import freshen                                             # noqa: E402
 freshen.freshen_modules(_HERE)                              # 고친 코드 바로 반영
 
 import esi                                                 # noqa: E402
-from arb_core import (PRESETS, SORTS, analyze_type, candidate_scores, clear_basket_state,  # noqa: E402
-                      commit_blocklist, filter_rows, internal_inversions, is_blocked,
-                      load_blocklist, pair_summary, parse_block_add, sell_fee_cd_of, sort_rows)
+from arb_core import (PRESETS, SORTS, analyze_type, basket_totals, candidate_scores,  # noqa: E402
+                      clear_basket_state, commit_blocklist, filter_rows, internal_inversions,
+                      is_blocked, load_blocklist, pair_summary, parse_block_add, row_uid,
+                      sell_fee_cd_of, sort_rows)
 
 BLOCK_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "blocklist.json")
 
@@ -190,36 +191,40 @@ def to_table(rows: list[dict]) -> pd.DataFrame:
     return view
 
 
-def render_basket(box, rows_map: dict, names: set):
-    """장바구니 합산을 placeholder에 채운다. 체크가 바뀐 런에도 즉시 호출된다."""
+def render_basket(box, rows_map: dict, picked: set):
+    """장바구니 합산을 placeholder에 채운다. 체크가 바뀐 런에도 즉시 호출된다.
+
+    picked는 row_uid 문자들 — **체크한 행 그 자체**를 센다. 예전처럼 종목 이름만
+    실으면 어느 프리셋·패턴의 행인지 잃으므로 합산기가 최댓값 행을 빼 와
+    수수료 없는 「검토」 프리셋이 늘 이긴다(전부가 과대해진다).
+    """
     box.empty()
-    if not names:
+    if not picked:
         with box:
             st.caption("🛒 장바구니 비어 있음 — 아래 표에서 체크박스로 종목을 담아오세요")
         return
-    best: dict[str, dict] = {}
-    for lst in rows_map.values():
-        for r in lst:
-            if r["item"] in names and (r["item"] not in best or r["profit"] > best[r["item"]]["profit"]):
-                best[r["item"]] = r
-    if not best:
+    t = basket_totals(rows_map, picked)
+    if not t["rows"]:
+        with box:
+            st.caption("🛒 체크한 행이 없음(되스캔 후 사라짐) — 표에서 다시 찍으세요")
         return
-    tot_v = sum(r["volume_m3"] or 0 for r in best.values())
-    tot_c = sum(r["capital"] for r in best.values())
-    tot_p = sum(r["profit"] for r in best.values())
     with box:
-        st.markdown(f"**🛒 장바구니 {len(best)}종목** — 합산")
+        st.markdown(f"**🛒 장바구니 {t['rows']}행** — 체크한 행 그대로 합산")
         a, b, c, d = st.columns(4)
-        a.metric("총부피", f"{tot_v:,.0f} m³")
-        b.metric("총 묶인 자본", f"{tot_c:,.0f} ISK")
-        c.metric("예상 순이익", f"{tot_p:,.0f} ISK")
+        a.metric("총부피", f"{t['volume_m3']:,.0f} m³")
+        b.metric("총 묶인 자본", f"{t['capital']:,.0f} ISK")
+        c.metric("예상 순이익", f"{t['profit']:,.0f} ISK")
         cargo_m3 = st.session_state.get("cargo_m3")
         if not isinstance(cargo_m3, (int, float)) or cargo_m3 <= 0:
             cargo_m3 = 534_000
-        d.metric(f"운항 횟수 (1회 {cargo_m3:,.0f}m³)", f"{-(-tot_v // cargo_m3):,.0f}")
+        d.metric(f"운항 횟수 (1회 {cargo_m3:,.0f}m³)", f"{-(-t['volume_m3'] // cargo_m3):,.0f}")
+        if len(t["items"]) < t["rows"]:      # 같은 종목을 서로 다른 패턴으로 — 둘 중 하나다
+            st.caption("⚠️ 한 종목이 두 패턴으로 걸렸다 — 실제로는 함께 못 한다")
+        if t["stale"]:
+            st.caption(f"⚠️ {t['stale']}행은 되스캔 후 사라져 빠졌다 — 다시 찍어라")
 
 
-def show_rows(rows: list[dict], title: str):
+def show_rows(rows: list[dict], title: str, preset: str = ""):
     if not rows:
         st.info(f"{title}: 조건을 통과한 아비가 없습니다.")
         return rows
@@ -230,7 +235,9 @@ def show_rows(rows: list[dict], title: str):
     st.caption("🛒 **장바구니**: 표 왼쪽 체크박스를 고르거나 **행을 아무 데나 클릭** — "
                "머리칸 체크박스는 전체 담기입니다")
     tbl = to_table(rows)
-    names = list(tbl["종목"])
+    # 표의 행 하나를 집는 신분 — 프리셋·패턴까지 박아 장바구니가 다른 행을 빼 오지 않는다.
+    # (tbl은 rows를 썪인 순서 그대로 — 아래 uids와 표의 줄이 한몸이다)
+    uids = [row_uid(r, preset or title) for r in rows]
     pinned = st.session_state.get("pinned", set())
     col_cfg = {c: st.column_config.NumberColumn(format="localized") for c in DECIMALS}
     # 행 선택형 표 — 체크박스 칸이 아니라 행 통째가 클릭 면적이고
@@ -244,7 +251,7 @@ def show_rows(rows: list[dict], title: str):
         st.session_state[hit] = True
 
     # 첫 실행에서만 표를 장바구니로 채운다 — 새로고침 후 체크표시가 돌아온다.
-    seed = [i for i, n in enumerate(names) if n in pinned]
+    seed = [i for i, u in enumerate(uids) if u in pinned]
     if seed and f"seeded_{title}" not in st.session_state:
         st.session_state[key] = {"selection": {"rows": seed}}
         st.session_state[f"seeded_{title}"] = True
@@ -256,10 +263,10 @@ def show_rows(rows: list[dict], title: str):
         # 위젯 상태는 dict — 키("rows")로 읽어야 한다 (속성 아님!)
         sel = (st.session_state.get(key) or {}).get("selection") or {}
         rows_idx = sel.get("rows") or []
-        sel_names = {names[i] for i in rows_idx if isinstance(i, int) and i < len(names)}
-        was = pinned & set(names)         # 이 표에 담겨 있던 것
-        if sel_names != was:              # 이 표가 실제로 바뀜 — 나머지 표 기여는 살린다
-            merged = (pinned - set(names)) | sel_names
+        sel_uids = {uids[i] for i in rows_idx if isinstance(i, int) and i < len(uids)}
+        mine, was = set(uids), pinned & set(uids)          # 이 표의 것 / 이 표에 담겨 있던 것
+        if sel_uids != was:             # 이 표가 실제로 바뀜 — 나머지 표 기여는 살린다
+            merged = (pinned - mine) | sel_uids
             st.session_state["pinned"] = merged
             # 강제 새로 고침(rerun)은 표를 맨 앞으로 튕긴다 — 함 상자 제때 채운다.
             bb, rr = globals().get("basket_box"), globals().get("rows")
@@ -539,7 +546,7 @@ def panel(pat: str):
             st.info(f"{pat}를 지나는 게 하나도 없다. 「최소 순이익 %」를 0까지 내리거나 짝을 늘려라.")
     for pname in rows:
         st.subheader(pname)
-        show_rows(keep[pname], f"p{pat}_{pname[:12]}")
+        show_rows(keep[pname], f"p{pat}_{pname[:12]}", pname)
 
 
 for i, pat in enumerate("ABCD"):
@@ -552,7 +559,7 @@ with body[4]:
     st.caption("여러 패턴(A/B/C/D)을 한 자리에 — 정순은 위 판과 같다.")
     for pname in rows:
         st.subheader(f"{pname} · 네 패턴 통합")
-        show_rows(filt(rows[pname], set(cfg["patterns"])), f"all_{pname[:12]}")
+        show_rows(filt(rows[pname], set(cfg["patterns"])), f"all_{pname[:12]}", pname)
 with body[5]:
     st.caption("네 패턴(A/B와 C/D)을 다 세었습니다 — C/D는 두 허브 매도창끼리니 쌍의 수익이 된다. "
                "합순이익 내림차순이라, 어느 쌍이 실제로 남는지 맨 위가 말한다.")

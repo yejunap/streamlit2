@@ -1,0 +1,10 @@
+{
+  "port": 8421,
+  "client_id": "0dadea0f728f4bfe83185f66453a92a8",
+  "redirect_base": "http://100.73.78.112:8421/",
+  "jobs_refresh": 60,
+  "assets_refresh": 600,
+  "bind": "auto",
+  "allow_public_bind": false,
+  "allowed_characters": ["SooJack"]
+}

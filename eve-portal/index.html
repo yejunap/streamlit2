@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EVE 산업·블루프린트</title>
+<style>
+:root { --bg:#000208; --panel:#0b111d; --panel2:#070d18; --line:#28324e;
+        --fg:#e9eef6; --dim:#93a1ba; --acc:#4da3ff; --ok:#3fb950;
+        --warn:#d29922; --err:#f85149; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--fg);
+       font:15px/1.5 "Segoe UI", sans-serif; }
+header { display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+         padding:10px 16px; background:var(--panel);
+         border-bottom:1px solid var(--line); position:sticky; top:0; z-index:5; }
+header h1 { font-size:18px; margin:0 12px 0 0; color:var(--acc); }
+button { background:#16223a; color:var(--fg); border:1px solid var(--line);
+         padding:7px 13px; border-radius:6px; cursor:pointer; font-size:14px; }
+button:hover { border-color:var(--acc); }
+button.danger { color:var(--err); }
+button.on { background:var(--acc); color:#04101f; }
+input, select { background:var(--panel2); color:var(--fg); font-size:14px;
+                border:1px solid var(--line); border-radius:6px; padding:7px 9px; }
+/* 폭을 세지 않는다 — 늘 브라우저 크기만큼 쓴다.
+   예전엔 max-width:1500px 에서 멈춰 임베드 창(eveind/eveind2/evearb2)이 넓은 모니터에서
+   더 안 커졌다. 화면이 좁은 곳은 전에도 100%라 모습이 그대로다. */
+main { padding:14px 16px 60px; width:100%; max-width:100%; margin:0 auto; }
+.cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+         gap:10px; margin:0 0 14px; }
+.card { background:var(--panel); border:1px solid var(--line); border-radius:12px;
+        padding:12px 16px; }
+.card b { display:block; font-size:30px; line-height:1.25; color:var(--acc); }
+.card span { color:var(--dim); font-size:12.5px; }
+.card .pct { color:var(--fg); opacity:.7; font-style:normal; font-size:12.5px; }
+.card.m b { color:#7ea6ff; }
+.card.r b { color:#6ee09c; }
+.card.i b { color:#c48cf5; }
+.card.x b { color:var(--dim); }
+.card.w b { color:var(--warn); }
+.tabs { display:flex; gap:8px; margin:14px 0 10px; flex-wrap:wrap; }
+.tabs button { border-radius:999px; padding:7px 20px; font-weight:600; font-size:15px; }
+.tabs button.on { box-shadow:0 0 0 3px #4da3ff33; }
+/* 통합 탭: 바깥 streamlit 앱을 담는 통 — 탭이 열릴 때 src 를 채운다 */
+.embed { margin-top:18px; border:1px solid var(--line); border-radius:12px;
+         overflow:hidden; background:#fff; }
+.embed .tip { padding:6px 12px; color:var(--dim); font-size:12px;
+              background:var(--panel); border-bottom:1px solid var(--line); }
+.embed iframe { width:100%; height:78vh; border:0; display:block; }
+.toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:0 0 12px; }
+.toolbar input { flex:1 1 200px; min-width:160px; }
+.row { background:var(--panel); border:1px solid var(--line); border-radius:10px;
+       padding:10px 12px; word-break:break-word; }
+.row.new { border-color:var(--ok); }
+.row .ln { font-weight:600; }
+.row .sub { display:block; color:var(--dim); font-weight:400;
+            font-size:11.5px; margin-top:2px; }
+.row .loc { color:var(--dim); font-size:12px; margin-top:6px;
+            display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+.row .when { margin-left:auto; color:var(--dim); font-size:11px; }
+.row code { background:#000; padding:1px 5px; border-radius:4px; color:#ffd79a;
+            font-size:11px; }
+.row .nm { font-size:10px; font-weight:700; background:var(--ok); color:#06130a;
+           border-radius:4px; padding:0 5px; }
+#jlist { display:flex; flex-direction:column; gap:8px; padding-bottom:20px; }
+.tag { display:inline-block; padding:1px 7px; border-radius:999px; font-size:12px;
+       border:1px solid var(--line); }
+.tag.st-BPO { color:var(--ok); border-color:var(--ok); }
+.tag.st-BPC { color:var(--warn); border-color:var(--warn); }
+.tag.sc-corp { color:var(--acc); border-color:var(--acc); }
+.tag.sc-mine { color:#c48cf5; border-color:#63459c; }
+.tag.st-cop { color:var(--ok); border-color:var(--ok); }
+.tag.st-sin { color:var(--dim); border-color:var(--dim); }
+.abl { display:inline-block; min-width:64px; text-align:center; padding:2px 8px;
+       border-radius:999px; font-size:12.5px; font-weight:600; }
+.abl.bm { background:#13203f; color:#7ea6ff; }
+.abl.br { background:#0e2a1a; color:#6ee09c; }
+.abl.bv { background:#0b2a2a; color:#4fd1d1; }
+.abl.bi { background:#251538; color:#c48cf5; }
+.abl.ba { background:#2a1e10; color:#f5b45c; }
+.abl.bx { background:#1b2331; color:var(--dim); }
+.note { color:var(--dim); font-size:13px; }
+.err { background:#3a1130; border:1px solid var(--err); border-radius:8px;
+       padding:8px 12px; margin:8px 0; color:#ffddd0; font-size:12px; }
+.placeholder { color:var(--dim); background:var(--panel);
+               border:1px dashed var(--line); border-radius:10px;
+               padding:14px; text-align:center; }
+.hidden { display:none; }
+#alist { display:flex; flex-direction:column; gap:8px; }
+.grp { background:var(--panel); border:1px solid var(--line); border-radius:10px;
+       margin:0; padding:0 12px; }
+.grp summary { cursor:pointer; padding:9px 0; font-weight:600; user-select:none; }
+.grp summary:hover { color:var(--acc); }
+.grp[open] summary { border-bottom:1px solid var(--line); }
+.grp .body { overflow-x:auto; padding-bottom:8px; }
+/* 그룹 용도별 액센트 — 한눈에 무슨 접힘인지 구분 */
+.grp.g-loc { border-left:3px solid var(--acc); }
+.grp.g-wait { border-left:3px solid var(--warn); background:#241a0d; }
+.grp.g-done { border-left:3px solid var(--ok); background:#0d1a12; }
+.grp.g-old { border-left:3px solid var(--dim); opacity:.85; }
+.grp.g-bp { border-left:3px solid #c48cf5; }
+.grp.g-old summary { color:var(--dim); }
+table { width:100%; border-collapse:collapse; }
+th, td { padding:6px 10px; border-bottom:1px solid var(--line); text-align:left; }
+th { color:var(--dim); font-weight:600; font-size:12px; text-transform:uppercase; }
+td { font-size:14.5px; }
+tr:hover td { background:#16223a; }
+td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+.hint { color:var(--dim); background:var(--panel); border:1px solid var(--line);
+        border-radius:10px; padding:12px 14px; margin:10px 0; line-height:1.7; }
+.hint a { color:var(--acc); }
+code { background:#000; padding:1px 5px; border-radius:4px; color:#ffd79a;
+       font-size:11px; }
+.chip { display:inline-flex; align-items:center; gap:6px; background:var(--panel2);
+        border:1px solid var(--line); border-radius:999px; padding:4px 11px;
+        font-size:13.5px; }
+.chip.bad { border-color:var(--err); }
+/* 선택된 칩은 버튼처럼 확연히 — 없는 사이에 클릭이 안 보일 수가 없다 */
+.chip.on { background:var(--acc); color:#04101f; border-color:var(--acc); font-weight:700; }
+/* 큰 카테고리 두 판 — 진행중 / 완료 */
+.cat { border:1px solid var(--line); border-radius:12px; padding:10px 14px;
+       margin:0 0 12px; background:var(--panel2); }
+.cat h2 { margin:2px 0 10px; font-size:17px; }
+.cat.live { border-left:4px solid var(--acc); }
+.cat.done { border-left:4px solid var(--ok); }
+.cat .sum { background:var(--panel); }
+.sum { background:var(--panel); border:1px solid var(--line); border-radius:10px;
+       padding:8px 14px; margin:0 0 10px; }
+.sum h3 { margin:0 0 6px; font-size:11px; color:var(--dim);
+          text-transform:uppercase; }
+.bar { display:flex; height:10px; border-radius:6px; overflow:hidden;
+       background:var(--panel2); }
+.bar span { display:block; min-width:2px; }
+.chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+.click { cursor:pointer; }
+.click:hover { outline:1px solid var(--acc); }
+/* 네이티브 앱 — 스트림릿 사이드본뜰 그대로 (왼 제어 / 오른쪽 본문) */
+.natgrid { display:grid; grid-template-columns:280px 1fr; gap:0 18px; align-items:start; }
+@media (max-width:950px) { .natgrid { grid-template-columns:1fr; } }
+.side { border-right:1px solid var(--line); padding:2px 16px 24px 0; }
+@media (max-width:950px) { .side { border-right:0; border-bottom:1px solid var(--line); padding:0 0 12px; } }
+.side h4 { margin:14px 0 4px; font-size:14px; color:var(--fg); }
+.side .cap { color:var(--dim); font-size:11.5px; margin:2px 0 6px; line-height:1.55; }
+.ibox { background:#0d1b2e; border:1px solid var(--line); border-radius:8px;
+        padding:8px 10px; color:var(--dim); font-size:12px; margin:6px 0; line-height:1.6; }
+.fld { margin:9px 0 2px; }
+.fld > label { display:flex; justify-content:space-between; align-items:baseline;
+               gap:6px; font-size:12.5px; color:var(--dim); cursor:help; }
+.fld > label b { color:var(--acc); font-variant-numeric:tabular-nums; }
+.fld input[type=number], .fld select { width:100%; }
+.fld input[type=range] { width:100%; accent-color:var(--acc); }
+.mgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+         gap:8px; margin:8px 0 10px; }
+.metric { background:var(--panel); border:1px solid var(--line); border-radius:10px;
+          padding:9px 13px; }
+.metric span { display:block; font-size:11.5px; color:var(--dim); }
+.metric b { font-size:19px; }
+.metric i { font-style:normal; font-size:11.5px; color:var(--ok); margin-left:6px; }
+.mtitle { font-size:12.5px; color:var(--dim); margin:10px 0 4px; font-weight:600; }
+.runb { font-size:10px; font-weight:700; background:#0e2a1a; color:#6ee09c;
+        border-radius:4px; padding:0 5px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>EVE 산업·블루프린트</h1>
+  <span id="chips"></span>
+  <span style="flex:1"></span>
+  <span class="note" id="last">…</span>
+  <button id="btnRefresh">새로고침</button>
+</header>
+<main>
+  <div class="tabs" id="tabs">
+    <button data-v="jobs" class="on">생산</button>
+    <button data-v="assets">블루프린트</button>
+    <button data-v="wallet">지갑</button>
+    <button data-v="eveind">eveind</button>
+    <button data-v="eveind2">eveind2</button>
+    <button data-v="evearb2">evearb2</button>
+    <button data-v="eveStn">eveStn</button>
+    <button data-v="config">설정</button>
+  </div>
+
+  <section id="sec-jobs">
+    <div class="toolbar">
+      <input id="jsearch" placeholder="제품·블프 검색…">
+      <select id="jact">
+        <option value="">전체 활동</option>
+        <option value="생산">생산</option>
+        <option value="연구">연구(전체)</option>
+        <option value="연구(카피)">연구(카피)</option>
+        <option value="연구(발명)">연구(발명)</option>
+        <option value="__etc">나머지</option>
+      </select>
+      <select id="jstatus">
+        <option value="">전체 상태</option>
+        <option value="진행중">진행중</option>
+        <option value="대기">대기</option>
+        <option value="회수대기">회수대기</option>
+        <option value="완료24">완료 ≤24h</option>
+        <option value="완료">완료 전체</option>
+      </select>
+    </div>
+
+    <div class="cat live">
+      <h2>진행중 <span class="note">— 지금 돌고 있는 것</span></h2>
+      <div class="cards">
+        <div class="card"><b id="c-running">–</b><span>전체 진행중</span></div>
+        <div class="card m"><b id="c-mfg">–</b><span>생산 <i class="pct" id="p-mfg"></i></span></div>
+        <div class="card r"><b id="c-res">–</b><span>연구(카피+발명) <i class="pct" id="p-res"></i></span></div>
+        <div class="card i"><b id="c-inv">–</b><span>연구 구성</span></div>
+        <div class="card x"><b id="c-etc">–</b><span>기타</span></div>
+      </div>
+      <div class="note" style="margin-top:4px">비중 = 가능 슬롯 대비 — 제조 50 · 연구 50 (2025-09 산업 개편 규칙; ESI에 용량 필드 없어 상수 고정)</div>
+      <div class="sum">
+        <h3>파이프라인 <span class="note">— 남은 시간 분포</span></h3>
+        <div class="bar" id="jbar"></div>
+        <div class="chips" id="jpipe"></div>
+      </div>
+      <div class="sum">
+        <h3>제품 요약 <span class="note">— 클릭하면 그걸로만 상세 보기</span></h3>
+        <div id="jprods"></div>
+      </div>
+    </div>
+
+    <div class="cat done">
+      <h2>완료 <span class="note">— 돌다 온 것 (회수 전 포함)</span></h2>
+      <div class="cards">
+        <div class="card x"><b id="c-done">–</b><span>완료 ≤24h</span></div>
+        <div class="card w"><b id="c-wait">–</b><span>회수대기</span></div>
+        <div class="card"><b id="c-all">–</b><span>총 완료(history)</span></div>
+      </div>
+      <div class="sum">
+        <h3>완료 — 활동별 <span class="note">— 최근 24h 완료분 (클릭 → 필터)</span></h3>
+        <div class="chips" id="jdone"><span class="note">최근 완료 없음</span></div>
+      </div>
+    </div>
+
+    <div id="jlist"></div>
+  </section>
+
+  <section id="sec-assets" class="hidden">
+    <div class="cards">
+      <div class="card"><b id="bp-n">–</b><span>총 장수</span></div>
+      <div class="card i"><b id="bp-bpo">–</b><span>BPO</span></div>
+      <div class="card m"><b id="bp-bpc">–</b><span>BPC</span></div>
+      <div class="card"><b id="bp-loc">–</b><span>보관 장소</span></div>
+    </div>
+    <div class="toolbar">
+      <input id="bpsearch" placeholder="블프 이름 검색…">
+      <select id="bpfmt">
+        <option value="">전체 형태</option>
+        <option value="BPO">BPO</option>
+        <option value="BPC">BPC</option>
+      </select>
+      <select id="bpscope">
+        <option value="">전체 소유</option>
+        <option value="개인">개인</option>
+        <option value="코퍼레이션">코퍼레이션</option>
+      </select>
+      <button id="bpopen">전체 펴기기</button>
+    </div>
+    <div class="note" style="margin-bottom:6px">보관 장소별 접힘 목록 — 펴고 접은 상태는 새로고침해도 그대로 유지됩니다.</div>
+    <div class="sum">
+      <h3>보관 분할 <span class="note">— 장소별 총장 비중</span></h3>
+      <div class="bar" id="bpbar"></div>
+      <div class="chips" id="bplocs"></div>
+    </div>
+    <div class="sum">
+      <h3>합산 보유 <span class="note">— 여러 장인 것만 (클릭 → 상세 필터) · <span style="color:var(--err)">100장 미만 = 적색</span></span></h3>
+      <div class="chips" id="bptop"></div>
+    </div>
+    <div class="sum">
+      <h3>자주 쓴 블프 <span class="note">— 창업 이래 생산완료 통산 · 10회 이상만 진열 · 보유 100장 미만 = 적색</span></h3>
+      <div class="chips" id="bprun"><span class="note">없음</span></div>
+    </div>
+    <div id="alist"></div>
+  </section>
+
+  <section id="sec-wallet" class="hidden">
+    <div class="sum">
+      <h3>자산 추이 <span class="note">— 10분 표본 · 코퍼 지갑 + 생산 재고 + 판매주문 = 자산 총합</span></h3>
+      <span id="wRange" class="note" style="display:inline-flex;gap:14px;vertical-align:middle">
+        <label><input type="radio" name="wr" value="1h">1시간</label>
+        <label><input type="radio" name="wr" value="1d" checked>1일</label>
+        <label><input type="radio" name="wr" value="1w">1주</label>
+        <label><input type="radio" name="wr" value="1mo">1달</label>
+      </span>
+    </div>
+    <div class="cards" id="walletCards"></div>
+    <div id="walletErr" class="note"></div>
+    <img id="walletChart" alt="자산 추이" style="width:100%;border-radius:10px">
+  </section>
+
+  <section id="sec-eveind" class="hidden">
+    <div class="natgrid">
+      <aside class="side">
+        <h4>⚙️ Settings</h4>
+        <div class="ibox">Material Purchase: Jita Sell Order (lowest price)<br>
+          Production: 1 BPC = 40 units / Rig: 4 units</div>
+        <h4>Fee Settings</h4>
+        <div class="fld"><label title="Station trading broker fee">Broker Fee (%)
+          <b id="cryBrokerV">1.5</b></label>
+          <input id="cryBroker" type="range" min="0" max="5" step="0.1" value="1.5"></div>
+        <div class="fld"><label title="Sales tax">Sales Tax (%)
+          <b id="cryTaxV">3.4</b></label>
+          <input id="cryTax" type="range" min="0" max="5" step="0.1" value="3.4"></div>
+        <div class="fld"><label title="Manufacturing installation cost (% of material cost)">Installation Cost (%)
+          <b id="cryInstV">3.0</b></label>
+          <input id="cryInst" type="range" min="0" max="10" step="0.1" value="3"></div>
+        <button id="cryRun" style="width:100%;margin-top:8px">🔄 Refresh Data</button>
+        <p class="cap">Data Source: EVE Online ESI API<br>Refresh: Every 10 minutes</p>
+      </aside>
+      <div>
+        <h2 style="margin:0 0 2px">🏭 EVE Online — Manufacturing Profit Calculator</h2>
+        <div class="note" style="margin:0 0 10px">T2 Crystals, Ammo, Rigs manufacturing profitability analysis</div>
+        <div id="cryNote" class="note">Jita 매도호가 기준 — 첫 실행은 수십 초, 이후엔 캐시로 빨라집니다.</div>
+        <div id="cryMats"></div>
+        <div id="crySum" class="mgrid"></div>
+        <h4 style="margin:12px 0 4px">📋 Detailed Profitability Data</h4>
+        <div class="fld"><label>Size Filter</label><div class="chips" id="crySizes"></div></div>
+        <div class="body" id="cryTable"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="sec-eveind2" class="hidden">
+    <div class="natgrid">
+      <aside class="side">
+        <h4>⚙️ Settings</h4>
+        <div class="fld"><label>Trading Hub</label>
+          <select id="fgHub"><option>Jita</option><option>Amarr</option><option>Dodixie</option><option>Rens</option><option>Hek</option></select></div>
+        <div class="ibox">재료 조달: 시장 팔 호가(lowest sell) 전량 구매 기준<br><br>
+          T2 시나리오 A: T1 전투기 시장 구매<br><br>
+          T2 시나리오 B: T1 전투기 자체 제조(광물 구매)<br><br>
+          BPC당 생산량: T1 50기 / T2 10기, 런당 1.0시간</div>
+        <h4>Fee Settings</h4>
+        <div class="fld"><label title="스테이션 중개 수수료">Broker Fee (%)
+          <b id="fgBrokerV">1.5</b></label>
+          <input id="fgBroker" type="range" min="0" max="5" step="0.1" value="1.5"></div>
+        <div class="fld"><label title="판매세">Sales Tax (%)
+          <b id="fgTaxV">3.4</b></label>
+          <input id="fgTax" type="range" min="0" max="5" step="0.1" value="3.4"></div>
+        <div class="fld"><label title="재료비 대비 설치비 (%)">Installation Cost (%)
+          <b id="fgInstV">3.0</b></label>
+          <input id="fgInst" type="range" min="0" max="10" step="0.1" value="3"></div>
+        <button id="fgRun" style="width:100%;margin-top:8px">🔄 Refresh Data</button>
+        <p class="cap">Data Source: EVE Online ESI API<br>Material price source: Fuzzwork blueprint data</p>
+      </aside>
+      <div>
+        <div id="fgNote" class="note">시세 로딩 — 첫 실행은 수십 초…</div>
+        <h3>🛩️ T1 전투기 제조 수익 (광물 → T1)</h3>
+        <div class="body" id="fgT1"></div>
+        <details class="grp" id="fgT1xBox"><summary>T1 제조 재료 상세 (광물 내역)</summary>
+          <div class="body" id="fgT1x"></div></details>
+        <h3>⚔️ T2 전투기 제조 수익 (T1 + 부품 → T2)</h3>
+        <div class="fld"><label>카테고리 필터</label><div class="chips" id="fgCats"></div></div>
+        <div id="fgSum" class="mgrid"></div>
+        <div class="body" id="fgT2"></div>
+        <details class="grp" id="fgT2xBox"><summary>T2 제조 부품 상세 (T2 전투기별)</summary>
+          <div class="body" id="fgT2x"></div></details>
+      </div>
+    </div>
+  </section>
+
+  <section id="sec-evearb2" class="hidden">
+    <div class="natgrid">
+      <aside class="side">
+        <h4>⚙️ 스캔</h4>
+        <p class="cap">Jita 4-4 ↔ Amarr / Dodixie / Rens — 주문판 전량 → 창두께 상위 종목</p>
+        <div class="fld"><label title="계산할 쌍만 고른다. 적게 고를수록 주문판 다운로드가 줄어 첫 스캔이 빨라진다.">Jita ↔ 허브 쌍</label>
+          <div class="chips" id="arbHubs"></div></div>
+        <button id="arbRun" style="width:100%">🔄 주문판 전체 스캔</button>
+        <div class="fld"><label title="크면 ESI 트로틀링에 걸릴 수 있다">ESI 워커
+          <b id="arbWorkersV">8</b></label>
+          <input id="arbWorkers" type="range" min="2" max="16" step="1" value="8"></div>
+        <div class="fld"><label title="A/B(사고팔기)나 C/D(매도↔매도)에 조마진 금액이 나는 종목, 그리고 한 스테이션에서 매수호가와 매도호가가 뒤집힌 종목을 모두 후보에 담는다">
+          <span><input id="arbAll" type="checkbox" checked> 전체 후보 (무제한)</span></label></div>
+        <div class="fld"><label>후보 종목 수 (전체 끔 시)</label>
+          <input id="arbMaxCand" type="number" value="1000" min="100" max="5000" step="100"></div>
+        <div class="fld"><label title="최근 열흘 체결량을 하루 평균으로 고친 것이다. 종목마다 한 번씩 물으므로 오래 걸린다. 「셀오더 재고/소비량」과 그 순서에만 쓴다.">
+          <span><input id="arbHist" type="checkbox" checked> 하루 소비량 조회</span></label></div>
+        <div class="fld"><label title="최근 열흘 체결량의 하루 평균이 이보다 큰 것만 표에 올린다. 0은 끄기." for="arbMinDv">최소 하루 소비량 (개/일)</label>
+          <input id="arbMinDv" type="number" value="100" min="0" step="50"></div>
+        <div class="fld"><label title="켜도 걸린 물건(SKIN)은 어차피 걸러진다">
+          <span><input id="arbBlockOff" type="checkbox"> ⏸ 낚시물 차단 잠시 해제</span></label></div>
+        <h4>💰 비용</h4>
+        <p class="cap">즉시판매는 브로커 수수료 없음. 대신 판매세는 무조건 붙는다 — 2025-03부터 기본 7.5% (Accounting Lv5면 3.4%)</p>
+        <div class="fld"><label title="켜면 판매세만, 끄면 지정가 대분으로 브로커 수수료가 더해진다">
+          <span><input id="arbMktSell" type="checkbox" checked> 판매 창을 즉시판매(시장가)로 가정</span></label></div>
+        <div class="fld"><label title="C/D는 내 매도호가를 창에 걸어서 팔므로 브로커 수수료가 늘 있다. 기본 4%. A/B의 판매에는 달지 않는다." for="arbBrokerCd">C/D 매도 브로커 수수료 %</label>
+          <input id="arbBrokerCd" type="number" value="4" min="0" max="10" step="0.1"></div>
+        <div class="fld"><label>수수료 프리셋</label><div class="chips" id="arbPresets"></div></div>
+        <div class="fld"><label title="탈 배의 화물함 용량" for="arbCargo">1회 적재 가능 부피 (m³)</label>
+          <input id="arbCargo" type="number" value="534000" min="100" step="1000"></div>
+        <h4>🔻 필터</h4>
+        <div class="fld"><label for="arbMinPct">최소 순이익 %</label>
+          <input id="arbMinPct" type="number" value="1" min="0" step="0.5"></div>
+        <div class="fld"><label for="arbMinProfit">최소 순이익 ISK</label>
+          <input id="arbMinProfit" type="number" value="0" min="0" step="100000"></div>
+        <div class="fld"><label for="arbMinCap">최소 묶인 자본 ISK</label>
+          <input id="arbMinCap" type="number" value="0" min="0" step="1000000"></div>
+        <div class="fld"><label title="팔 창에 물린 총량이 하루 평균 거래의 며칠치인지. 작을수록 팔 데가 있다. 0은 끄기." for="arbMaxQd">셀오더 재고 / 하루 소비량 (일)</label>
+          <input id="arbMaxQd" type="number" value="10" min="0" step="1"></div>
+        <div class="fld"><label for="arbSort">표 정렬</label>
+          <select id="arbSort">
+            <option>① 순이익↓ ② 묶인 돈↓ ③ 부피↓ ④ 재고/소비량↓</option>
+            <option>① ISK/m³↓ ② 순이익↓ ③ 묶인 자본↓</option>
+          </select></div>
+        <div class="fld"><label title="이 비율 안쪽인 순이익은 같다고 보고 다음 자리(묶인 돈·부피·재고/소비량)로 가린다. 0이면 있는 그대로.">순이익 같은 걸로 보는 간격 (%)
+          <b id="arbTolV">0</b></label>
+          <input id="arbTol" type="range" min="0" max="50" step="5" value="0"></div>
+        <div class="fld"><label>패턴</label><div class="chips" id="arbPats"></div></div>
+      </aside>
+      <div>
+        <div id="arbNote" class="note">첫 스캔은 쌍당 수십 초~분, 캐시 뒤엔 빨라집니다. 패턴 A/B/C/D 는 한 표에 합쳐 실립니다.</div>
+        <div class="body" id="arbTable"></div>
+        <details id="arbLogBox" class="grp"><summary>진단 로그</summary><pre id="arbLog" class="note"></pre></details>
+      </div>
+    </div>
+  </section>
+
+  <section id="sec-eveStn" class="hidden">
+    <div class="natgrid">
+      <aside class="side">
+        <h4>🏪 스테이션</h4>
+        <p class="cap">한 스테이션 안에서 사고팔기 — 매도·매수 호가 사이 간격(스프레드)을 내 호가로 회수한다. 접는 속도는 하루 체결량이 재는다</p>
+        <div class="fld"><label title="계대할 창 하나. 고르면 그 창만 내린다 — 주문판은 10분 남직 캐시된다.">허브</label>
+          <div class="chips" id="stnHubs"></div></div>
+        <button id="stnRun" style="width:100%">📈 주문판 스캔</button>
+        <div class="fld"><label title="크면 ESI 트로틀링에 걸릴 수 있다">ESI 워커
+          <b id="stnWorkersV">8</b></label>
+          <input id="stnWorkers" type="range" min="2" max="16" step="1" value="8"></div>
+        <div class="fld"><label title="창두께(최호가 물량) 상위만 편다. 크면 종목 조회가 기린다" for="stnMaxItems">검사 종목 수 (상한)</label>
+          <input id="stnMaxItems" type="number" value="300" min="50" max="2000" step="50"></div>
+        <div class="fld"><label title="매도호가 기준. 이보다 간격이 얇은 건 접는다" for="stnMinSpread">최소 스프레드 %</label>
+          <input id="stnMinSpread" type="number" value="1" min="0" step="0.5"></div>
+        <div class="fld"><label title="판매세 + 브로커 합산 — Accounting Lv5·지정가면 1.5+3=4.9, 무스킬이면 7.5+3" for="stnFee">판매 수수료 %</label>
+          <input id="stnFee" type="number" value="4.9" min="0" max="12" step="0.1"></div>
+        <div class="fld"><label title="최근 열흘 체결의 하루 평균. 이보다 적게 팔리는 건 접기" for="stnMinDv">최소 하루 체결량 (개/일)</label>
+          <input id="stnMinDv" type="number" value="50" min="0" step="10"></div>
+        <div class="fld"><label title="하루 회수 여력(스프레드 × 풀 물량)이 이보다 작은 건 접는다" for="stnMinCap">최소 하루 회수 ISK</label>
+          <input id="stnMinCap" type="number" value="0" min="0" step="1000000"></div>
+        <div class="fld"><label title="켜도 걸린 물건(SKIN)은 어차피 걸러진다">
+          <span><input id="stnBlockOff" type="checkbox"> ⏸ 낚시물 차단 잠시 해제</span></label></div>
+      </aside>
+      <div>
+        <div id="stnNote" class="note">주문판은 어비 탭과 캐시를 나눕니다 — 어비 돌고 나면 바로 빨라집니다. 스프레드·두께 큰 종목을 앞에 세우고, 수수료 차감 후 마진은 색으로 칠합니다.</div>
+        <div class="body" id="stnTable"></div>
+        <details id="stnLogBox" class="grp"><summary>진단 로그</summary><pre id="stnLog" class="note"></pre></details>
+      </div>
+    </div>
+  </section>
+
+  <section id="sec-config" class="hidden">
+    <div class="hint">
+      <b>EVE Developer Portal 설정</b><br>
+      1. <a href="https://developers.eveonline.com/applications" target="_blank">개발자 포털 → 앱</a>을 등록하고 클라이언트 ID를 붙이세요.<br>
+      2. <b>Redirect</b>은 이 페이지 주소를 복사해 그대로 넣고 저장합니다.<br>
+      3. 스코프: <code>esi-industry.read characters industry.jobs esi-assets.read characters assets esi-location.read location.type esi-search.structures esi-universe.read structures esi-calendar.calendar esi-wallet.read_corporate_wallet esi-markets.read_corporation_orders</code><br>
+      4. 등록 후 클라이언트 ID 저장 → <b>EVE 로그인</b>
+    </div>
+    <div class="toolbar">
+      <input id="cid" placeholder="EVE 앱 클라이언트 ID">
+      <input id="rbase" placeholder="리디렉트 기본 주소 (http://테일스케일 IP:8421)">
+      <button id="save">저장</button>
+      <button id="login">EVE 로그인</button>
+      <button id="logout" title="저장된 EVE 인증 전체 삭제 후 재등록 유도">로그아웃</button>
+    </div>
+    <div id="cfgnote" class="note"></div>
+  </section>
+</main>
+<script>
+"use strict";
+let DATA = {jobs: [], blueprints: [], characters: []};
+let fullBp = false;
+
+/* 통합 탭 — 같은 기계에 떠 있는 로컬 streamlit 앱(포크해서 로컬 구동). ?embed=true 로 헤드 숨김.
+   암호는 묻지 않는다: 이 대시보드 자체가 EVE SSO(SooJack 전용) 를 지나서다. */
+const EMBEDS = {
+  /* 네이티브화 완료 — iframe 탭 없음. /apps/* 중계는 「새 창」 링크로만 쓴다. */
+};
+const SECTIONS = ["jobs", "assets", "wallet", "eveind", "eveind2", "evearb2", "eveStn", "config"];
+function activateEmbed(tab) {
+  const f = document.getElementById("embed-" + tab);
+  if (f && !f.src && EMBEDS[tab]) f.src = EMBEDS[tab];
+}
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? "" : s)
+  .replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const fmt = (n) => n == null ? "" : new Intl.NumberFormat().format(n);
+/* UTC(ISO)문자시를 한국시간 표기로 — 브라우저 타임존 무관 고정 */
+const kst = (s, opts) => s ? new Date(s).toLocaleString("ko-KR", Object.assign(
+  {timeZone: "Asia/Seoul", month: "2-digit", day: "2-digit",
+   hour: "2-digit", minute: "2-digit", hour12: false}, opts || {})) : "";
+
+/* 펼침 상태 보존 — poll이마다 다시 그려도 접힘이 되돌려지지 않는다 */
+const openState = new Map();
+function mkGroup(key, cls, dflt) {
+  const d = document.createElement("details");
+  d.className = "grp" + (cls ? " " + cls : "");
+  d.open = openState.has(key) ? openState.get(key) : !!dflt;
+  d.addEventListener("toggle", () => openState.set(key, d.open));
+  return d;
+}
+
+/* 활동 배지: 실측된 최신 activity_id 매핑 */
+function badge(act) {
+  // 접두매우 — "연구(발명)"은 "연구"보다 앞에 와야 알록 color 배지 앞지르기 됨
+  const KNOWN = {"생산": "bm", "연구(발명)": "bv", "연구": "br", "반응": "ba"};
+  const key = String(act).split("(")[0];
+  let c = "bx";
+  for (const k in KNOWN) if (String(act).startsWith(k)) { c = KNOWN[k]; break; }
+  const label = act.indexOf("activity#") === 0 ? "기타 " + act.slice(9) : act;
+  return `<span class="abl ${c}">${esc(label)}</span>`;
+}
+
+/* 활동 요약 순서 기준 — 생산→연구(카피/발명)→반응→기타 (카드·칩·그룹 공통) */
+const ACT_ORDER = ["생산", "연구", "반응"];
+const actRank = a => {
+  const i = ACT_ORDER.indexOf(String(a).split("(")[0]);
+  return i < 0 ? ACT_ORDER.length : i;
+};
+const byAct = (a, b) => actRank(a) - actRank(b) || String(a).localeCompare(String(b));
+
+async function poll(force) {
+  try {
+    DATA = await (await fetch("/api/state")).json();
+    render();
+    if (!$("sec-wallet").classList.contains("hidden")) renderWallet();
+    $("last").textContent = "고침 " + new Date().toLocaleTimeString();
+  } catch (e) {
+    $("last").textContent = "조회 실패: " + e;
+  }
+}
+
+function drawJobs() {
+  const jobs = DATA.jobs || [];
+  const isFin = j => j.status === "완료" || j.status === "회수대기";
+  const live = jobs.filter(j => !isFin(j));
+  const wait = jobs.filter(j => j.status === "회수대기");
+  const is24 = j => j.done_age_h == null || j.done_age_h <= 24;
+  const done = jobs.filter(j => j.status === "완료" && is24(j));
+  const cnt = p => live.filter(j => String(j.activity).indexOf(p) === 0).length;
+  const nMfg = cnt("생산"), nRes = cnt("연구(카피)"), nInv = cnt("연구(발명)");
+  // % = 활동별 가능 슬롯 대비 — 제조 50 · 연구(카피+발명) 50
+  // (2025-09 산업 개편 규칙. ESI에 슬롯 용량 필드가 없어 상수로 박는다.)
+  const SLOT = { prod: 50, res: 50 };
+  const setCard = (id, n, cap) => {
+    $(id).textContent = fmt(n);
+    const p = document.getElementById(id.replace("c-", "p-"));
+    if (p) p.textContent = cap ? Math.round(n * 100 / cap) + "% (" + n + "/" + cap + ")" : "";
+  };
+  const nEtc = live.length - nMfg - nRes - nInv;
+  $("c-running").textContent = fmt(live.length);
+  setCard("c-mfg", nMfg, SLOT.prod);
+  setCard("c-res", nRes + nInv, SLOT.res);           // 연구 %= (카피+발명)/50 — 한 묶리 최대 50
+  $("c-inv").textContent = `카피 ${fmt(nRes)} / 발명 ${fmt(nInv)}`;
+  $("c-etc").textContent = fmt(nEtc);
+  $("c-wait").textContent = fmt(wait.length);
+  $("c-done").textContent = fmt(done.length);
+  $("c-all").textContent = fmt(jobs.filter(j => j.status === "완료").length);
+
+  const q = $("jsearch").value.trim();
+  const act = $("jact").value, st = $("jstatus").value;
+  const known = ["생산", "연구"];
+  const rows = jobs.filter(j => {
+    const a = String(j.activity);
+    if (act === "__etc" ? known.some(k => a.indexOf(k) === 0)
+        : act && a.indexOf(act) !== 0)
+      return false;
+    if (st === "완료24") {
+      if (!(j.status === "완료" && is24(j))) return false;
+    } else if (st && j.status !== st) return false;
+    if (q && !(j.product.includes(q) || j.location.includes(q) ||
+               j.blueprint.includes(q)))
+      return false;
+    return true;
+  });
+
+  const groups = {};
+  const rowsLive = rows.filter(j => !isFin(j));
+  const rowsWait = rows.filter(j => j.status === "회수대기");
+  const rowsDone = rows.filter(j => j.status === "완료" && is24(j));
+  const rowsOld = rows.filter(j => j.status === "완료" && !is24(j));
+  rowsLive.forEach(j => (groups[j.location] = groups[j.location] || []).push(j));
+
+  const list = $("jlist");
+  list.innerHTML = "";
+  for (const loc of Object.keys(groups).sort()) {
+    const items = groups[loc];
+    const d = mkGroup("장소:" + loc, "g-loc", true);
+    d.innerHTML =
+      `<summary>📍 ${esc(loc)} <span class="note">· ${items.length}건</span></summary>` +
+      `<div class="body"><table><thead><tr>` +
+      `<th>활동</th><th>제품</th><th class="num">횟수</th><th class="num">성공</th>` +
+      `<th>상태</th><th>소유</th><th>의뢰</th><th class="num">잔여</th>` +
+      `<th class="num">완료예정</th></tr></thead><tbody>` +
+      items.map(j =>
+        `<tr><td>${badge(j.activity)}</td>` +
+        `<td>${esc(j.product)}</td>` +
+        `<td class="num">${fmt(j.runs)}</td>` +
+        `<td class="num">${fmt(j.successful_runs)}</td>` +
+        `<td><span class="tag ${j.status === "진행중" ? "st-cop" : "st-sin"}">${esc(j.status)}</span></td>` +
+        `<td><span class="tag ${j.scope === "코퍼레이션" ? "sc-corp" : "sc-mine"}">${esc(j.scope)}</span></td>` +
+        `<td class="note">${esc(j.installer)}</td>` +
+        `<td class="num">${esc(j.ends_left || "")}</td>` +
+        `<td class="num">${kst(j.end_date)}</td></tr>`).join("") +
+      `</tbody></table></div>`;
+    list.appendChild(d);
+  }
+  // 요약 ①: 시간 파이프라인 — 언제 끝나는 일인가
+  const SEGS = [[6*3600, "#4da3ff", "≤ 6시간"], [24*3600, "#3fb950", "≤ 1일"],
+                [7*86400, "#d29922", "≤ 1주"], [Infinity, "#7c89a3", "장기"]];
+  const segCnt = [0, 0, 0, 0];
+  live.forEach(j => {
+    let k = j.ends_in == null ? 3 : SEGS.findIndex(s => j.ends_in <= s[0]);
+    segCnt[k < 0 ? 3 : k]++;
+  });
+  $("jbar").innerHTML = segCnt.map((v, i) => v
+    ? `<span style="flex:${v};background:${SEGS[i][1]}"></span>` : "").join("");
+  $("jpipe").innerHTML = segCnt.map((v, i) => v
+    ? `<span class="chip">${SEGS[i][2]} <b>${v}</b></span>` : "").join("")
+    || '<span class="chip">없음</span>';
+
+  // 요약 ②: 제품별 — 같은 제품이 한 군(群), 그룹의 완료 시점은 마지막 건의 잔여
+  const byProd = {};
+  for (const j of live) {
+    const e = byProd[j.product] = byProd[j.product] ||
+      {a: j.activity, n: 0, r: 0, last: null, lastTxt: ""};
+    e.n++; e.r += j.runs || 0;
+    if (j.ends_in != null && (e.last == null || j.ends_in > e.last)) {
+      e.last = j.ends_in; e.lastTxt = j.ends_left;
+    }
+  }
+  $("jprods").innerHTML = Object.entries(byProd)
+    .sort((a, b) => byAct(a[1].a, b[1].a) || b[1].n - a[1].n)
+    .map(([name, e]) =>
+      `<span class="chip click" data-jp="${esc(name)}">${badge(e.a)} ` +
+      `${esc(name)} <b>${e.n}건</b> · ${fmt(e.r)}회` +
+      (e.lastTxt ? ` · 최종 ${esc(e.lastTxt)}` : "") + "</span>")
+    .join("<br>") || '<span class="note">없음</span>';
+
+  // 요약 ③: 완료(24h 내) — 활동별 칩. 클릭 시 완료 필터 진입
+  const dact = {};
+  done.forEach(j => dact[j.activity] = (dact[j.activity] || 0) + 1);
+  $("jdone").innerHTML = Object.entries(dact).sort((a, b) => byAct(a[0], b[0]))
+    .map(([a, n]) => `<span class="chip click" data-jact="${esc(a)}">` +
+      `${badge(a)} <b>${n}건</b></span>`).join("")
+    || '<span class="note">24h 내 완료 없음</span>';
+
+  // 상세: 완료 그룹 — delivered는 처리 성공(회수 여부는 ESI로 알 수 없고, 완료 탭은
+  // 지워질 때까지 그냥 history로 남는다). 최근 것은 펼쳐 두고, 오래건은 접는다.
+  const doneGroup = (items, title, open, cls) => {
+    if (!items.length) return;
+    const byl = {};
+    items.forEach(j => (byl[j.activity] = byl[j.activity] || []).push(j));
+    Object.keys(byl).sort(byAct).forEach(a => {
+      const it = byl[a].sort((x, y) => (y.done_txt || "").localeCompare(x.done_txt || ""));
+      const d = mkGroup("완료:" + title + ":" + a, cls, open);
+      d.innerHTML =
+        `<summary>✅ 완료 · ${title} · ${badge(a)} <span class="note">· ${it.length}건</span></summary>` +
+        `<div class="body"><table><thead><tr>` +
+        `<th>제품</th><th class="num">횟수</th><th class="num">성공</th>` +
+        `<th>장소</th><th>소유</th><th>의뢰</th><th class="num">완료시각(KST)</th></tr></thead><tbody>` +
+        it.map(j =>
+          `<tr><td>${esc(j.product)} <span class="note">(${esc(j.blueprint)})</span></td>` +
+          `<td class="num">${fmt(j.runs)}</td>` +
+          `<td class="num">${fmt(j.successful_runs)}</td>` +
+          `<td class="note">${esc(j.location)}</td>` +
+          `<td><span class="tag ${j.scope === "코퍼레이션" ? "sc-corp" : "sc-mine"}">${esc(j.scope)}</span></td>` +
+          `<td class="note">${esc(j.installer)}</td>` +
+          `<td class="num">${esc(j.done_txt || "")}</td></tr>`).join("") +
+        `</tbody></table></div>`;
+      list.appendChild(d);
+    });
+  };
+  // 📦 회수대기 — 만료(end가 지남)인데 아직 active: 생산물은 줄탔고 안 받은 것
+  if (rowsWait.length) {
+    const byl = {};
+    rowsWait.forEach(j => (byl[j.activity] = byl[j.activity] || []).push(j));
+    Object.keys(byl).sort(byAct).forEach(a => {
+      const it = byl[a];
+      const d = mkGroup("대기:" + a, "g-wait", true);
+      d.innerHTML =
+        `<summary>📦 회수대기 · ${badge(a)} <span class="note">· ${it.length}건 — 다 끝났는데 안 받고 있음</span></summary>` +
+        `<div class="body"><table><thead><tr>` +
+        `<th>제품</th><th class="num">횟수</th><th class="num">성공</th>` +
+        `<th>장소</th><th>소유</th><th>의뢰</th><th class="num">만료시각(KST)</th></tr></thead><tbody>` +
+        it.map(j =>
+          `<tr><td>${esc(j.product)} <span class="note">(${esc(j.blueprint)})</span></td>` +
+          `<td class="num">${fmt(j.runs)}</td>` +
+          `<td class="num">${fmt(j.successful_runs)}</td>` +
+          `<td class="note">${esc(j.location)}</td>` +
+          `<td><span class="tag ${j.scope === "코퍼레이션" ? "sc-corp" : "sc-mine"}">${esc(j.scope)}</span></td>` +
+          `<td class="note">${esc(j.installer)}</td>` +
+          `<td class="num">${esc(j.done_txt || "")}</td></tr>`).join("") +
+        `</tbody></table></div>`;
+      list.appendChild(d);
+    });
+  }
+  doneGroup(rowsDone, "최근(≤24h)", true, "g-done");
+  doneGroup(rowsOld, "이전 history", false, "g-old");
+
+  if (!rows.length)
+    list.innerHTML = '<div class="placeholder">해당 작업이 없습니다.</div>';
+}
+function renderBp() {
+  const all = DATA.blueprints || [];
+  // 돌가 판별용: 지금 인더스트리 작업에 돌아가는 블프 타입 id 집합
+  const running = new Set((DATA.jobs || []).map(j => j.bp_type_id)
+    .filter(x => x != null));
+  const q = $("bpsearch").value.trim();
+  const rows = all.filter(b => {
+    if ($("bpscope").value && b.scope !== $("bpscope").value) return false;
+    if ($("bpfmt").value && b.kind !== $("bpfmt").value) return false;
+    if (q && !b.name.includes(q)) return false;
+    return true;
+  });
+
+  $("bp-n").textContent = fmt(rows.reduce((s, b) => s + (b.qty || 1), 0));
+  $("bp-bpo").textContent = fmt(rows.filter(b => b.kind === "BPO").length);
+  $("bp-bpc").textContent = fmt(rows.filter(b => b.kind === "BPC")
+    .reduce((s, b) => s + (b.qty || 1), 0));
+
+  // BPC는 싱글톤이라 매니 마다 quantity=1로 별도 엔티티 → 같은 이름 병합
+  const agg = {};
+  for (const b of rows) {
+    const k = [b.scope, b.location, b.owner, b.kind, b.name].join("\u0000");
+    const e = agg[k] = agg[k] || {scope: b.scope, location: b.location,
+                                  owner: b.owner, kind: b.kind,
+                                  name: b.name, qty: 0, tids: new Set()};
+    e.qty += b.qty || 1;
+    e.tids.add(b.type_id);
+  }
+  const groups = {};
+  for (const e of Object.values(agg))
+    (groups[e.scope + "\u0000" + e.location] =
+      groups[e.scope + "\u0000" + e.location] || []).push(e);
+  const keys = Object.keys(groups).sort();
+  $("bp-loc").textContent = fmt(keys.length);
+
+  const list = $("alist");
+  list.innerHTML = "";
+  keys.forEach((k, i) => {
+    const [scope, loc] = k.split("\u0000");
+    const items = groups[k].sort((a, b) => a.name.localeCompare(b.name));
+    const d = mkGroup("블프:" + k, "g-bp", fullBp || i < 3);
+    const tot = items.reduce((s, b) => s + (b.qty || 1), 0);
+    d.innerHTML =
+      `<summary><span class="tag ${scope === "코퍼레이션" ? "sc-corp" : "sc-mine"}">${esc(scope)}</span>` +
+      ` ${esc(loc)} <span class="note">· ${items.length}종 / ${fmt(tot)}장</span></summary>` +
+      `<div class="body"><table><thead><tr>` +
+      `<th>이름</th><th>형태</th><th class="num">수량</th><th>출처</th></tr></thead><tbody>` +
+      items.map(b =>
+        `<tr><td>${esc(b.name)}` +
+        (([...b.tids].some(t => running.has(t)))
+          ? ' <span class="runb">가동 중</span>' : "") + `</td>` +
+        `<td><span class="tag st-${b.kind}">${b.kind}</span></td>` +
+        `<td class="num" style="${b.qty < 100 ? "color:var(--err);font-weight:700" : b.qty > 1 ? "color:var(--warn);font-weight:700" : ""}">${fmt(b.qty)}</td>` +
+        `<td class="note">${esc(b.owner)}</td></tr>`).join("") +
+      `</tbody></table></div>`;
+    list.appendChild(d);
+  });
+  if (!keys.length)
+    list.innerHTML = '<div class="placeholder">블루프린트가 없습니다 — 자산 갱신 대기를 몇 분 기다렸다가 새로고침해 주세요.</div>';
+
+  // 요약 ①: 장소별 보유 비중 바
+  const locQty = {};
+  for (const b of all) {
+    const k = b.scope + " · " + b.location;
+    locQty[k] = (locQty[k] || 0) + (b.qty || 1);
+  }
+  const lks = Object.entries(locQty).sort((a, b) => b[1] - a[1]);
+  const COL = ["#4da3ff", "#3fb950", "#d29922", "#c48cf5",
+               "#f85149", "#5cc8c8", "#7c89a3"];
+  $("bpbar").innerHTML = lks.map(([k, v], i) =>
+    `<span style="flex:${v};background:${COL[i % 7]}" title="${esc(k)} ${fmt(v)}장"></span>`).join("");
+  $("bplocs").innerHTML = lks.map(([k, v], i) =>
+    `<span class="chip${v < 100 ? " bad" : ""}"><i style="width:8px;height:8px;border-radius:2px;display:inline-block;background:${COL[i % 7]}"></i>` +
+    ` ${esc(k)} <b${v < 100 ? ' style="color:var(--err)"' : ""}>${fmt(v)}</b></span>`).join("");
+
+  // 요약 ②: 여러 장인 것만 (클릭 → 상세 필터). 100장 미만은 적색 경고.
+  $("bptop").innerHTML = Object.values(agg).filter(e => e.qty > 1)
+    .sort((a, b) => b.qty - a.qty).slice(0, 14)
+    .map(e => `<span class="chip click${e.qty < 100 ? " bad" : ""}" data-bp="${esc(e.name)}">` +
+      `<span class="tag st-${e.kind}">${e.kind}</span> ${esc(e.name)} ` +
+      `<b${e.qty < 100 ? ' style="color:var(--err)"' : ""}>${fmt(e.qty)}</b></span>`).join("") || '<span class="note">여러 장짜리 없음</span>';
+
+  // 요약 ③: 자주 쓴 블프 — 제조 '완료' 기록 전 기간(창업 이래) 합산.
+  // 체감이 있는 것만 보여주자면 10회 이상 만 진열.
+  const use = {};
+  for (const j of (DATA.jobs || [])) {
+    if (j.status !== "완료" || String(j.activity).indexOf("생산") !== 0) continue;
+    const e = use[j.blueprint] = use[j.blueprint] || {n: 0};
+    e.n++;
+  }
+  // 재고 접합: 같은 이름 자산의 총 장수 (BPO 1장 + BPC 카피 합산)
+  const stock = {};
+  for (const b of all) stock[b.name] = (stock[b.name] || 0) + (b.qty || 1);
+  $("bprun").innerHTML = Object.entries(use)
+    .filter(([, e]) => e.n >= 10)
+    .sort((a, b) => b[1].n - a[1].n)
+    .map(([nm, e]) => {
+      const q = stock[nm];
+      const low = q == null || q < 100;
+      return `<span class="chip${low ? " bad" : ""}"><span class="runb">애용</span> ` +
+        `${esc(nm)} <b>${e.n}회</b> · 보유 <b${low ? ' style="color:var(--err)"' : ""}>` +
+        `${q == null ? "없음" : fmt(q) + "장"}</b></span>`;
+    }).join("") || '<span class="note">10회 이상 쓴 블프 없음</span>';
+}
+
+function renderChips() {
+  $("chips").innerHTML = (DATA.characters || []).map(ch =>
+    `<span class="chip${ch.refresh_error ? " bad" : ""}" title="${esc((ch.errors | {}).jobs || "")}">` +
+    `${esc(ch.name)} <span class="note">${esc(ch.corp_name || "")}</span></span>`).join(" ");
+}
+
+function render() {
+  drawJobs();
+  renderBp();
+  renderChips();
+  $("cfgnote").innerHTML = (DATA.client_id_set
+    ? "클라이언트 ID 설정됨 · " + (DATA.characters || []).length + "캐릭터"
+    : "클라이언트 ID를 먼저 설정하세요") +
+    (DATA.redirect_uri ? ` · 리다이렉트: <code>${esc(DATA.redirect_uri)}</code>` : "");
+}
+
+/* 지갑 탭: /api/wallet 최신 점 → 카드 4개 + matplotlib PNG (표본 ts로 브로즈 캐시 무력화) */
+async function renderWallet() {
+  try {
+    const w = await (await fetch("/api/wallet")).json();
+    const h = (w.history || []).slice(-1)[0];
+    const isk = v => ((v || 0) / 1e9).toFixed(2);   // 전 종목 B(billion) 통일
+    if (h) {
+      const at = new Date(h.ts * 1000).toLocaleString();
+      $("walletCards").innerHTML = `
+        <div class="card"><b style="color:#c48cf5">${isk(h.total)}B</b><span>총합 ISK · ${at}</span></div>
+        <div class="card"><b style="color:#e8a33d">${isk(h.corp_isk)}B</b><span>코퍼 지갑</span></div>
+        <div class="card"><b style="color:#6ee09c">${isk(h.product)}B</b><span>생산 재고</span></div>
+        <div class="card"><b style="color:#7ea6ff">${isk(h.orders)}B</b><span>판매주문</span></div>`;
+      $("walletChart").src = "/api/wallet/chart.png?range="
+        + (document.querySelector("#wRange input:checked") || {value: "1d"}).value
+        + "&ts=" + h.ts;
+    } else {
+      $("walletCards").innerHTML =
+        '<div class="note">아직 표본 없음 — 서버 기동 후 첫 10분 내에 첫 점이 찍힘</div>';
+    }
+    const errs = Object.values(w.errors || {});
+    $("walletErr").textContent = errs.length ? "⚠ " + errs.join(" · ") : "";
+  } catch (e) {
+    $("walletErr").textContent = "지갑 조회 실패: " + e;
+  }
+}
+
+/* 시간 창 전환 — radio 하나 골라도 즉시 다시 그림 */
+for (const r of document.querySelectorAll("#wRange input"))
+  r.onchange = () => renderWallet();
+
+/* 원판 사이드 그대로 — 슬라이더 값은 라벨 곁에 드러난다 */
+function bindRange(inputId, badgeId, fmtv) {
+  const i = $(inputId), b = badgeId && $(badgeId);
+  const sync = () => { if (b) b.textContent = fmtv ? fmtv(i.value) : i.value; };
+  i.addEventListener("input", sync); sync();
+  return sync;
+}
+const F1 = v => Number(v).toFixed(1);
+bindRange("cryBroker", "cryBrokerV", F1); bindRange("cryTax", "cryTaxV", F1);
+bindRange("cryInst", "cryInstV", F1);
+bindRange("fgBroker", "fgBrokerV", F1); bindRange("fgTax", "fgTaxV", F1);
+bindRange("fgInst", "fgInstV", F1);
+bindRange("arbWorkers", "arbWorkersV"); bindRange("arbTol", "arbTolV");
+/* 스캐터: 원판 st.metric 한 장 = 이름 + 값 + 델타 */
+function metric(label, value, delta) {
+  return `<div class="metric"><span>${esc(label)}</span><b>${esc(value)}</b>` +
+    (delta ? `<i>${esc(delta)}</i>` : "") + "</div>";
+}
+/* ── 크리스탈 · 전투기 · 어비 — 네이티브 런너 (iframe 중계 없음) ───────── */
+function cellHtml(c, v, grad) {
+  const num = typeof v === "number";
+  const body = num ? fmt(v) : esc(v == null ? "" : v);
+  if (grad && c === grad && num) {
+    const t = Math.round(Math.max(0, Math.min(1, (v + 10) / 60)) * 110);
+    return `<td class="num" style="background:hsl(${t},85%,62%);color:#0a0f18;font-weight:700">${body}</td>`;
+  }
+  return `<td${num ? ' class="num"' : ""}>${body}</td>`;
+}
+function drawTable(host, cols, rows, grad) {
+  host.innerHTML = "<table><thead><tr>" + cols.map(c => `<th>${esc(c)}</th>`).join("") +
+    "</tr></thead><tbody>" + rows.map(r =>
+      "<tr>" + cols.map(c => cellHtml(c, r[c], grad)).join("") + "</tr>"
+    ).join("") + "</tbody></table>";
+}
+function mkChips(el, opts, sel, render) {
+  el.innerHTML = opts.map(o =>
+    `<span class="chip${sel.has(o) ? " on" : ""}" data-c="${esc(o)}" style="cursor:pointer"> ${esc(o)}</span>`).join("");
+  el.onclick = e => {
+    const c = e.target.closest("[data-c]");
+    if (!c) return;
+    sel.has(c.dataset.c) ? sel.delete(c.dataset.c) : sel.add(c.dataset.c);
+    render();
+  };
+}
+
+/* 크리스탈 — 원판: 그룹 재료 카드 + 요약 metric 4 + Size Filter(영어 4종) */
+const CRY_SIZE_OPTS = [["S (Small)", "S"], ["M (Medium)", "M"], ["L (Large)", "L"], ["Rig / Other", "R"]];
+const crySizes = new Set(["S (Small)", "M (Medium)", "Rig / Other"]);
+const crySizesR = () => {
+  $("crySizes").innerHTML = CRY_SIZE_OPTS.map(([label]) =>
+    `<span class="chip${crySizes.has(label) ? " on" : ""}" data-c="${esc(label)}" style="cursor:pointer"> ${esc(label)}</span>`).join("");
+};
+$("crySizes").onclick = e => {
+  const c = e.target.closest("[data-c]");
+  if (!c) return;
+  crySizes.has(c.dataset.c) ? crySizes.delete(c.dataset.c) : crySizes.add(c.dataset.c);
+  crySizesR();
+};
+crySizesR();
+$("cryRun").onclick = async () => {
+  $("cryRun").disabled = true;
+  $("cryNote").textContent = "ESI 대기 — 첫 판은 수십 초…";
+  try {
+    const p = new URLSearchParams({
+      broker: $("cryBroker").value, tax: $("cryTax").value,
+      install: $("cryInst").value,
+      sizes: CRY_SIZE_OPTS.filter(([l]) => crySizes.has(l)).map(x => x[1]).join(",")});
+    const d = await (await fetch("/api/apps/crystal?" + p)).json();
+    if (d.error) { $("cryNote").textContent = "오류: " + d.error; return; }
+    $("cryMats").innerHTML = (d.mat_groups || []).map(g =>
+      `<div class="mtitle">${esc(g.title)}</div><div class="mgrid">` +
+      g.items.map(it => metric(it[0], fmt(it[1]) + " ISK", it[2])).join("") +
+      "</div>").join("");
+    const s = d.summary || {};
+    $("crySum").innerHTML =
+      metric("Average Profit Margin", (s.avg_margin ?? "-") + "%") +
+      metric("Highest Margin Crystal", s.best || "—",
+             s.best_margin != null ? s.best_margin + "%" : "") +
+      metric("Highest Unit Profit", s.best_profit != null ? fmt(s.best_profit) + " ISK" : "—") +
+      metric("Profitable Crystals", s.profitable ?? "—");
+    $("cryNote").textContent = `${d.rows.length}종 · ${(d.ms / 1000).toFixed(1)}초`;
+    drawTable($("cryTable"), d.cols, d.rows, "Margin %");
+  } catch (e) { $("cryNote").textContent = "요청 실패: " + e; }
+  finally { $("cryRun").disabled = false; }
+};
+
+/* 전투기 — T1/T2 표 + 요약 metric 4 + 재료/부품 상세 expander */
+const fgCats = new Set(["Light", "Support", "Heavy"]);
+const fgCatsR = () => mkChips($("fgCats"), ["Light", "Support", "Heavy"], fgCats, fgCatsR);
+fgCatsR();
+function breakdownHtml(rows, nameCol, matCol, extra) {
+  return rows.map(r => {
+    const b = r.breakdown || [];
+    const head = extra ? `<div class="mtitle">${esc(r[nameCol])} — ${extra(r)}</div>`
+                       : `<div class="mtitle">${esc(r[nameCol])}</div>`;
+    return head + "<table><thead><tr><th>" + matCol +
+      "</th><th>단가</th><th>수량</th><th>합계</th></tr></thead><tbody>" +
+      b.map(x => {
+        const td = c => `<td class="num">${fmt(c)}</td>`;   // 큰따옴표 없는 보조자
+        return `<tr><td>${esc(x[0])}</td>${td(x[1])}${td(x[2])}${td(x[3])}</tr>`;
+      }).join("") +
+      "</tbody></table>";
+  }).join("");
+}
+$("fgRun").onclick = async () => {
+  $("fgRun").disabled = true;
+  $("fgNote").textContent = "시세 로딩 — 첫 실행은 수십 초…";
+  try {
+    const p = new URLSearchParams({
+      hub: $("fgHub").value, broker: $("fgBroker").value,
+      tax: $("fgTax").value, install: $("fgInst").value,
+      cats: [...fgCats].join(",")});
+    const d = await (await fetch("/api/apps/fighter?" + p)).json();
+    if (d.error) { $("fgNote").textContent = "오류: " + d.error; return; }
+    const n = d.n_prices || (d.t1.rows.length + d.t2.rows.length);
+    $("fgNote").textContent = `시세 로딩 완료 — ${n}개 항목 (허브: ${d.hub}) · ${(d.ms / 1000).toFixed(1)}초`;
+    drawTable($("fgT1"), d.t1.cols, d.t1.rows, "마진(%)");
+    $("fgT1x").innerHTML = breakdownHtml([...d.t1.rows].sort((a, b) => a["전투기"] < b["전투기"] ? -1 : 1),
+                                         "전투기", "재료");
+    const s = d.t2_summary || {};
+    $("fgSum").innerHTML =
+      metric("최고 수익 (B)", s.best_profit != null ? fmt(s.best_profit) + " ISK" : "—", s.best || "") +
+      metric("최고 마진 (B)", s.best_margin != null ? s.best_margin + "%" : "—", s.best || "") +
+      metric("수익 있는 전투기", s.profitable ?? "—") +
+      metric("T1 제조가 이로운 경우", s.t1_better ?? "—");
+    drawTable($("fgT2"), d.t2.cols, d.t2.rows, "마진B(%)");
+    $("fgT2x").innerHTML = breakdownHtml([...d.t2.rows].sort((a, b) => a["T2 전투기"] < b["T2 전투기"] ? -1 : 1),
+      "T2 전투기", "부품",
+      r => `T1: ${r["T1"] || ""} (시가 ${fmt(r["T1 시가"])} / 제조원가 ${fmt(r["T1 제조원가"])})`);
+    $("fgT1xBox").classList.remove("hidden");
+    $("fgT2xBox").classList.remove("hidden");
+  } catch (e) { $("fgNote").textContent = "요청 실패: " + e; }
+  finally { $("fgRun").disabled = false; }
+};
+
+/* 어비 — 원판 사이드: 허브·프리셋·패턴 칩 + 전체 매개변수 */
+const arbHubs = new Set(["Amarr"]);
+let ARB_LAST = null;   // 마지막 스캔 {cols, rows} — 필터를 만졌을 때 제스캔 없이 그 자리 추림
+function arbRedraw() {
+  if (!ARB_LAST) return;
+  const minPct = parseFloat($("arbMinPct").value) || 0;
+  const minIsk = parseFloat($("arbMinProfit").value) || 0;
+  const rows = ARB_LAST.rows.filter(r =>
+    arbPats.has(r["패턴"]) &&
+    (!arbHubs.size || [...arbHubs].some(h => (r["쌍"] || "").includes(h))) &&
+    (r["순이익%"] || 0) >= minPct && (r["순이익 ISK"] || 0) >= minIsk);
+  drawTable($("arbTable"), ARB_LAST.cols, rows, "순이익%");
+}
+const arbHubsR = () => { mkChips($("arbHubs"), ["Amarr", "Dodixie", "Rens"], arbHubs, arbHubsR); arbRedraw(); };
+arbHubsR();
+const ARB_PRESETS = [
+  "Accounting5 (세 3.4%)",
+  "무스킬 (세 7.5% / 브로커 3%)",
+  "검토 (수수료 0% — 호가 역전만)"];
+const arbPresets = new Set(["Accounting5 (세 3.4%)"]);
+const arbPresetsR = () => mkChips($("arbPresets"), ARB_PRESETS, arbPresets, arbPresetsR);
+arbPresetsR();
+const arbPats = new Set(["A", "B", "C", "D"]);
+const arbPatsR = () => { mkChips($("arbPats"), ["A", "B", "C", "D"], arbPats, arbPatsR); arbRedraw(); };
+arbPatsR();
+for (const id of ["arbMinPct", "arbMinProfit"]) $(id).addEventListener("input", arbRedraw);
+$("arbRun").onclick = async () => {
+  $("arbRun").disabled = true;
+  $("arbNote").textContent = "스캔 — 첫 판은 쌍당 수십 초~분…";
+  try {
+    const p = new URLSearchParams({
+      hubs: [...arbHubs].join(","), workers: $("arbWorkers").value,
+      all: $("arbAll").checked ? "1" : "0",
+      max_cand: $("arbMaxCand").value,
+      hist: $("arbHist").checked ? "1" : "0",
+      block_off: $("arbBlockOff").checked ? "1" : "0",
+      market_sell: $("arbMktSell").checked ? "1" : "0",
+      broker_cd: $("arbBrokerCd").value,
+      presets: [...arbPresets].join("|"),
+      cargo: $("arbCargo").value,
+      min_pct: $("arbMinPct").value,
+      min_profit: $("arbMinProfit").value,
+      min_cap: $("arbMinCap").value,
+      min_dv: $("arbMinDv").value,
+      max_qd: $("arbMaxQd").value, tol: $("arbTol").value,
+      sort: $("arbSort").value,
+      patterns: [...arbPats].join(",")});
+    const d = await (await fetch("/api/apps/arb?" + p)).json();
+    if (d.error) {
+      $("arbNote").textContent = "오류: " + d.error;
+      if (d.log) { $("arbLog").textContent = d.log.join("\n"); }
+      return;
+    }
+    $("arbNote").textContent = `${d.hubs.join("↔")} · 후보 ${d.candidates} · 표 ${d.rows.length}${d.truncated ? " /" + d.total_rows : ""} · ${(d.ms / 1000).toFixed(1)}초`;
+    $("arbLog").textContent = (d.log || []).join("\n");
+    ARB_LAST = {cols: d.cols, rows: d.rows};   // 이후 칩·필터는 이 판에서 그 자리 추림
+    arbRedraw();
+  } catch (e) { $("arbNote").textContent = "요청 실패: " + e; }
+  finally { $("arbRun").disabled = false; }
+};
+
+/* 스테이션 — 한 스테이션 안의 호가 간격(스프레드)을 판다 */
+let STN_LAST = null;   // 마지막 스캔 {cols, rows} — 필터를 만졌을 때 제스캔 없이 그 자리 추림
+const stnHubs = new Set(["Jita"]);
+function stnRedraw() {
+  if (!STN_LAST) return;
+  const minSpread = parseFloat($("stnMinSpread").value) || 0;
+  const minDv = parseFloat($("stnMinDv").value) || 0;
+  const minCap = parseFloat($("stnMinCap").value) || 0;
+  const rows = STN_LAST.rows.filter(r =>
+    (r["스프레드 %"] || 0) >= minSpread &&
+    (r["하루 체결량"] || 0) >= minDv &&
+    (r["하루 회수 ISK"] || 0) >= minCap);
+  drawTable($("stnTable"), STN_LAST.cols, rows, "수수료 차감 %");
+}
+const stnHubsR = () => { mkChips($("stnHubs"), ["Jita", "Amarr", "Dodixie", "Rens"], stnHubs, stnHubsR); stnRedraw(); };
+stnHubsR();
+for (const id of ["stnMinSpread", "stnMinDv", "stnMinCap"]) $(id).addEventListener("input", stnRedraw);
+$("stnWorkers").addEventListener("input", () => $("stnWorkersV").textContent = $("stnWorkers").value);
+$("stnRun").onclick = async () => {
+  $("stnRun").disabled = true;
+  $("stnNote").textContent = "스캔 — 주문판 전량을 내린다…";
+  try {
+    const p = new URLSearchParams({
+      hub: [...stnHubs][0] || "Jita", workers: $("stnWorkers").value,
+      max_items: $("stnMaxItems").value, min_spread: $("stnMinSpread").value,
+      fee: $("stnFee").value, min_dv: $("stnMinDv").value,
+      min_capture: $("stnMinCap").value,
+      block_off: $("stnBlockOff").checked ? "1" : "0"});
+    const d = await (await fetch("/api/apps/station?" + p)).json();
+    if (d.error) {
+      $("stnNote").textContent = "오류: " + d.error;
+      if (d.log) $("stnLog").textContent = d.log.join("\n");
+      return;
+    }
+    $("stnNote").textContent = `${d.hub} · 창걸림 ${d.candidates}종 · 表 ${d.rows.length}${d.truncated ? " /" + d.total_rows : ""} · ${(d.ms / 1000).toFixed(1)}초`;
+    $("stnLog").textContent = (d.log || []).join("\n");
+    STN_LAST = {cols: d.cols, rows: d.rows};   // 이후 필터는 이 판에서 그 자리 추림
+    stnRedraw();
+  } catch (e) { $("stnNote").textContent = "요청 실패: " + e; }
+  finally { $("stnRun").disabled = false; }
+};
+
+for (const b of document.querySelectorAll("#tabs button"))
+  b.onclick = () => {
+    const v = b.dataset.v;
+    document.querySelectorAll("#tabs button").forEach(x => x.classList.toggle("on", x === b));
+    for (const s of SECTIONS)
+      $("sec-" + s).classList.toggle("hidden", v !== s);
+    if (v === "wallet") renderWallet();
+    activateEmbed(v);
+  };
+for (const id of ["jsearch", "jact", "jstatus"])
+  $(id).addEventListener("input", drawJobs);
+for (const id of ["bpsearch", "bpfmt", "bpscope"])
+  $(id).addEventListener("input", renderBp);
+$("bpopen").onclick = () => {
+  fullBp = true;
+  // 펴기기는 기록된 접힘도 모두 깬다
+  openState.forEach((v, k) => { if (k.startsWith("블프:")) openState.set(k, true); });
+  renderBp();
+};
+$("jprods").onclick = e => {
+  const t = e.target.closest("[data-jp]");
+  if (!t) return;
+  const inp = $("jsearch");
+  // 같은 칩 재클릭 = 해제 토글
+  inp.value = inp.value.trim() === t.dataset.jp ? "" : t.dataset.jp;
+  // 다른 요약 칩에서 남은 활동/상태 필터를 비우고 결과로 바로 낸다
+  $("jact").value = "";
+  $("jstatus").value = "";
+  drawJobs();
+};
+$("jdone").onclick = e => {
+  const t = e.target.closest("[data-jact]");
+  if (!t) return;
+  $("jsearch").value = "";
+  $("jstatus").value = "완료24";
+  const sel = $("jact");
+  sel.value = [...sel.options].some(o => o.value === t.dataset.jact)
+    ? t.dataset.jact : "";
+  drawJobs();
+};
+$("bptop").onclick = e => {
+  const t = e.target.closest("[data-bp]");
+  if (t) { $("bpsearch").value = t.dataset.bp; renderBp(); }
+};
+$("btnRefresh").onclick = () => poll(true);
+$("save").onclick = async () => {
+  await fetch("/api/config", {method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({client_id: $("cid").value.trim(),
+                          redirect_base: $("rbase").value.trim()})});
+  $("save").textContent = "저장됨 ✓";
+  setTimeout(() => $("save").textContent = "저장", 1500);
+  poll(true);
+};
+$("login").onclick = () => { location.href = "/login"; };
+$("logout").onclick = async () => {
+  if (!confirm("CCP 토큰을 폐기하고 강제 재로그인으로 갑니다")) return;
+  await fetch("/api/logout", {method: "POST",
+    headers: {"Content-Type": "application/json"}, body: "{}"});
+  poll(true);
+  setTimeout(() => { location.href = "/login"; }, 400);
+};
+poll(true);
+setInterval(() => poll(false), 10000);
+
+
+</script>
+
+</body>
+</html>

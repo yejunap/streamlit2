@@ -1,0 +1,5 @@
+tokens.json
+wallet_history.json
+__pycache__/
+*.pyc
+.streamlit/secrets*

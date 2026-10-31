@@ -1,0 +1,105 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""EVE 산업 포털 — Streamlit 런처.
+
+기존 엔진(server.py)은 고대로 돌리고(스레드), 그 위에 같은 데이터를 얹은
+간소한 얼굴을 streamlit 으로 웃는다. 엔진의 SSO·폴링·캐시는 고스란히 산다.
+    streamlit run streamlit_app.py
+"""
+import json
+import os
+import threading
+import time
+import urllib.error
+import urllib.request
+
+import streamlit as st
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+os.environ.setdefault("EVE_APPS_DIR", os.path.join(HERE, "apps"))
+import server  # 같은 자리의 복사 — __main__ 가드라 가져오기 안전
+
+CFG = json.load(open(os.path.join(HERE, "config.json"), encoding="utf-8"))
+BASE = "http://127.0.0.1:%s" % CFG.get("port", 8421)
+
+
+@st.cache_resource
+def backend():
+    """엔진 한 판 — 8421에 이미 다른 얼굴이 붙어 있으면 그걸 쓴다."""
+    t = threading.Thread(server.main, daemon=True)
+    t.start()
+    for _ in range(25):
+        try:
+            urllib.request.urlopen(BASE + "/", timeout=1)
+            return True
+        except urllib.error.HTTPError:
+            return True          # 401/302 도 살아 있는 얼굴
+        except Exception:
+            time.sleep(1)
+    return False
+
+
+def api(path):
+    try:
+        with urllib.request.urlopen(BASE + path, timeout=15) as r:
+            return json.loads(r.read().decode())
+    except urllib.error.HTTPError as e:
+        if e.code == 401:
+            return {"_login": True}
+        raise
+    except Exception as e:
+        return {"_err": str(e)}
+
+
+st.set_page_config(page_title="EVE 산업 포털", layout="wide")
+st.title("🛰 EVE 산업 포털")
+backend()
+
+d = api("/api/state")
+if d.get("_login"):
+    st.warning("EVE 로그인 후 허용 캐릭터만 접근 가능")
+    st.link_button("🔐 EVE SSO 로그인", BASE + "/sso/login")
+    st.stop()
+if d.get("_err"):
+    st.error("엔진 응답 없음 — %s" % d["_err"])
+    st.stop()
+
+with st.sidebar:
+    st.caption("기관: %d · 캐릭터 %d" % (
+        len({c.get("corp_name") for c in d["characters"]}), len(d["characters"])))
+    if st.button("🔄 새로고침"):
+        st.cache_resource.clear()
+        st.rerun()
+
+st.tabs if False else None
+t1, t2, t3, t4 = st.tabs(["캐릭터", "생산", "블루프린트", "지갑"])
+with t1:
+    st.dataframe([{
+        "이름": c.get("name"), "코퍼": c.get("corp_name"),
+        "직업": c.get("title", ""),
+    } for c in d.get("characters", [])], use_container_width=True)
+with t2:
+    rows = []
+    for c in d.get("characters", []):
+        for j in c.get("jobs", []):
+            rows.append({"캐릭터": c["name"], "활동": j.get("activity"),
+                         "진행": round(j.get("progress", 0), 1),
+                         "완료": j.get("runs"), "장소": j.get("location", ""),
+                         "끝나면": j.get("stops", "")})
+    st.dataframe(rows or [{"캐릭터": "없음"}], use_container_width=True)
+with t3:
+    rows = []
+    for c in d.get("characters", []):
+        for bp in c.get("blueprints", [])[:400]:
+            rows.append({"캐릭터": c["name"], "블프": bp.get("name"),
+                         "난이도": bp.get("location", "")})
+    st.dataframe(rows or [{"캐릭터": "없음"}], use_container_width=True)
+with t4:
+    rows = []
+    for c in d.get("characters", []):
+        for w in (c.get("wallet") or {}).get("lines", [])[:200]:
+            rows.append({"캐릭터": c["name"], "소식": w.get("type"),
+                         "ISK": w.get("amount"), "때": w.get("date")})
+    st.dataframe(rows or [{"캐릭터": "없음"}], use_container_width=True)
+
+st.caption("본창 엔진 상태 — SSO 리다이렉트는 %s 로 등록" % CFG.get("redirect_base"))

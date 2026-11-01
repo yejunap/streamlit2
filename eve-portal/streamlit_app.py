@@ -68,24 +68,28 @@ try:
 except Exception:
     pass
 
-# 콜백 편 — EVE가 code/state를 실어 보냈으면 같은 자리에서 받는다
+# 콜백 편 — EVE가 code/state를 실어 보냈으면 같은 자리에서 받는다.
+# 주의: 같은 state로 두 번 다시 받지 말자(URL 지워지라는 소리가 안 먹힌다이)
 try:
     _q = dict(st.query_params)
 except Exception:
     _q = {}
 _sso_msg = ""
 if "code" in _q and "state" in _q:
-    try:
-        st.query_params.clear()
-    except Exception:
-        pass
-    try:
-        _cid = server.sso_complete(_q["code"], _q["state"])
-        _sso_msg = "%s 님 로그인 됨" % server._tokens[_cid]["name"]
-        time.sleep(4)   # 엔진이 첫 고임을 돌게 조금 기다림
-    except Exception as e:
-        _sso_msg = "SSO 완료 실패: %s" % e
-    st.rerun()
+    st.write("콜백 들어옴 — 코드 교환 중...")
+    if st.session_state.get("_cb_seen") != _q["state"]:
+        st.session_state["_cb_seen"] = _q["state"]
+        try:
+            _cid = server.sso_complete(_q["code"], _q["state"])
+            _sso_msg = "%s님 로그인 됨" % server._tokens[_cid]["name"]
+        except Exception as e:
+            _sso_msg = "SSO 완료 실패: %s" % e
+    else:
+        _sso_msg = st.session_state.get("_cb_msg", "(이전 콜백은 처리됨)")
+    st.session_state["_cb_msg"] = _sso_msg
+    st.info(_sso_msg)
+    st.markdown("### [완료 — 모우기로 가기](/)")
+    st.stop()   # 여기서 서문 닫고 — 모우기 누르면 표 판으로 갈림
 
 
 @st.cache_resource

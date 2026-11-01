@@ -59,6 +59,12 @@ try:
             _rb = "https://" + _h
     if _rb:
         server.CFG["redirect_base"] = _rb
+    # 시크릿에 직접 두 적당: client_id / redirect_full — 포털과 한 글자용으로
+    if st.secrets.get("client_id"):
+        server.CFG["client_id"] = st.secrets["client_id"]
+    _rfull = st.secrets.get("redirect_full")
+    if _rfull:
+        server.redirect_uri = lambda: _rfull
 except Exception:
     pass
 

@@ -24,6 +24,16 @@ import server  # 같은 자리의 복사 — __main__ 가드라 가져오기 안
 CFG = json.load(open(os.path.join(HERE, "config.json"), encoding="utf-8"))
 BASE = "http://127.0.0.1:%s" % CFG.get("port", 8421)
 
+# Streamit Cloud — 설정 → Secrets에 tokens_json으로 tokens.json 내용을 붙인다.
+# (클라우드엔 SSO 콜백받을 바깥 창이 없어서 로그인은 여기로 대신한다.)
+try:
+    _tj = st.secrets.get("tokens_json")
+    if _tj:
+        with open(os.path.join(HERE, "tokens.json"), "w", encoding="utf-8") as f:
+            f.write(_tj if isinstance(_tj, str) else json.dumps(_tj))
+except Exception:
+    pass
+
 
 @st.cache_resource
 def backend():
@@ -80,9 +90,10 @@ if d.get("_err"):
 
 chars = d.get("characters") or []
 if not chars:
-    st.info("캐릭터 데이터 비어 있음 — 포털에서 EVE SSO 로그인先 "
-            "(이 기기에 tokens.json이 없거나 만료됨)")
-    st.link_button("🔐 포털에서 로그인", BASE + "/sso/login")
+    st.info("캐릭터 데이터 비음 — 로컬이면 포털 창에서 EVE SSO 로그인, "
+            "**클라우드면 설정(Sidebar ⋮ → Settings → Secrets)에 `tokens_json`**으로 "
+            "tokens.json 내용을 붙여 넣으세요. (이 기기엔 tokens.json이 없거나 만료됨)")
+    st.link_button("🔐 포털에서 로그인 (로컬일 때만 됨)", BASE + "/sso/login")
     st.stop()
 
 with st.sidebar:

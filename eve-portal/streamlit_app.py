@@ -193,8 +193,19 @@ if not chars:
             "**클라우드면 설정(Sidebar ⋮ → Settings → Secrets)에 `tokens_json`**으로 "
             "tokens.json 내용을 붙여 넣으세요. (이 기기엔 tokens.json이 없거나 만료됨)")
     st.link_button("🔐 EVE 로그인 — 이 뜨는 곳의 주소로 콜백 등록 필요", login_url())
-    st.code("엔진 되준 key: %s" % list(d.keys()))
     manual_box()
+    # 속좁은 데까지 화면에 — 어디가 안 오는지 지가 말하게 한다
+    try:
+        _tok = {str(k): {"이름": v.get("name"), "갱신오류": v.get("refresh_error", "")}
+                for k, v in server._tokens.items()}
+    except Exception as e:
+        _tok = {"오류": str(e)}
+    st.expander("🩺 진단 — 붙여주시면 제가 맞춵니다").json(
+        {"엔진이 쥔 토큰": _tok,
+         "상태 키": list(d.keys()),
+         "상태 짤줌": {k: (v if isinstance(v, (int, float, str, bool)) else f"{type(v).__name__}:{len(v) if hasattr(v, '__len__') else ''}") for k, v in d.items()}}
+        if isinstance(d, dict) else {"상태": str(type(d))}
+    )
     st.stop()
 
 with st.sidebar:

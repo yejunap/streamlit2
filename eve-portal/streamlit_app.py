@@ -15,6 +15,8 @@ import urllib.request
 
 import streamlit as st
 
+st.set_page_config(page_title="EVE 산업 포털", layout="wide")
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 os.environ.setdefault("EVE_APPS_DIR", os.path.join(HERE, "apps"))
 import server  # 같은 자리의 복사 — __main__ 가드라 가져오기 안전
@@ -26,17 +28,27 @@ BASE = "http://127.0.0.1:%s" % CFG.get("port", 8421)
 @st.cache_resource
 def backend():
     """엔진 한 판 — 8421에 이미 다른 얼굴이 붙어 있으면 그걸 쓴다."""
-    t = threading.Thread(server.main, daemon=True)
-    t.start()
+    errs = []
+
+    def run():
+        # 예외를 삼키지 말자 — 목숨 없는 스레드가 제일 무섭다
+        try:
+            server.main()
+        except Exception as e:
+            errs.append("%s: %s" % (type(e).__name__, e))
+
+    threading.Thread(target=run, daemon=True).start()
     for _ in range(25):
         try:
             urllib.request.urlopen(BASE + "/", timeout=1)
-            return True
+            return True, ""
         except urllib.error.HTTPError:
-            return True          # 401/302 도 살아 있는 얼굴
+            return True, ""      # 401/302 도 살아 있는 얼굴
         except Exception:
+            if errs:
+                return False, errs[0]
             time.sleep(1)
-    return False
+    return False, "엔진 안 열림 (25초 대기)"
 
 
 def api(path):
@@ -51,9 +63,11 @@ def api(path):
         return {"_err": str(e)}
 
 
-st.set_page_config(page_title="EVE 산업 포털", layout="wide")
 st.title("🛰 EVE 산업 포털")
-backend()
+ok, why = backend()
+if not ok:
+    st.error("엔진 없음 — %s" % why)
+    st.stop()
 
 d = api("/api/state")
 if d.get("_login"):
@@ -64,23 +78,28 @@ if d.get("_err"):
     st.error("엔진 응답 없음 — %s" % d["_err"])
     st.stop()
 
+chars = d.get("characters") or []
+if not chars:
+    st.info("캐릭터 데이터 비어 있음 — 포털에서 EVE SSO 로그인先 "
+            "(이 기기에 tokens.json이 없거나 만료됨)")
+    st.link_button("🔐 포털에서 로그인", BASE + "/sso/login")
+    st.stop()
+
 with st.sidebar:
     st.caption("기관: %d · 캐릭터 %d" % (
-        len({c.get("corp_name") for c in d["characters"]}), len(d["characters"])))
+        len({c.get("corp_name") for c in chars}), len(chars)))
     if st.button("🔄 새로고침"):
-        st.cache_resource.clear()
         st.rerun()
 
-st.tabs if False else None
 t1, t2, t3, t4 = st.tabs(["캐릭터", "생산", "블루프린트", "지갑"])
 with t1:
     st.dataframe([{
         "이름": c.get("name"), "코퍼": c.get("corp_name"),
         "직업": c.get("title", ""),
-    } for c in d.get("characters", [])], use_container_width=True)
+    } for c in chars], use_container_width=True)
 with t2:
     rows = []
-    for c in d.get("characters", []):
+    for c in chars:
         for j in c.get("jobs", []):
             rows.append({"캐릭터": c["name"], "활동": j.get("activity"),
                          "진행": round(j.get("progress", 0), 1),
@@ -89,17 +108,17 @@ with t2:
     st.dataframe(rows or [{"캐릭터": "없음"}], use_container_width=True)
 with t3:
     rows = []
-    for c in d.get("characters", []):
+    for c in chars:
         for bp in c.get("blueprints", [])[:400]:
             rows.append({"캐릭터": c["name"], "블프": bp.get("name"),
                          "난이도": bp.get("location", "")})
     st.dataframe(rows or [{"캐릭터": "없음"}], use_container_width=True)
 with t4:
     rows = []
-    for c in d.get("characters", []):
+    for c in chars:
         for w in (c.get("wallet") or {}).get("lines", [])[:200]:
             rows.append({"캐릭터": c["name"], "소식": w.get("type"),
                          "ISK": w.get("amount"), "때": w.get("date")})
     st.dataframe(rows or [{"캐릭터": "없음"}], use_container_width=True)
 
-st.caption("본창 엔진 상태 — SSO 리다이렉트는 %s 로 등록" % CFG.get("redirect_base"))
+st.caption("엔진 상태 — SSO 리다이렉트는 %s 로 등록" % CFG.get("redirect_base"))

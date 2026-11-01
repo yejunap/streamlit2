@@ -224,11 +224,29 @@ if d.get("_err"):
 
 chars = d.get("characters") or []
 if not chars:
-    st.info("캐릭터 데이터 비음 — 로컬이면 포털 창에서 EVE SSO 로그인, "
-            "**클라우드면 설정(Sidebar ⋮ → Settings → Secrets)에 `tokens_json`**으로 "
-            "tokens.json 내용을 붙여 넣으세요. (이 기기엔 tokens.json이 없거나 만료됨)")
-    st.link_button("🔐 EVE 로그인 — 이 뜨는 곳의 주소로 콜백 등록 필요", login_url())
-    manual_box()
+    # 안전표: 상태가 비었어도 토큰판이 보이면 캐릭터만큼은 드러눕힌다
+    _live = []
+    try:
+        _mem = dict(server._tokens)
+        _tp = os.path.join(HERE, "tokens.json")
+        if os.path.exists(_tp):
+            with open(_tp, encoding="utf-8") as f:
+                for k, v in json.load(f).items():
+                    _mem.setdefault(int(k), v)
+        _live = list(_mem.values())
+    except Exception:
+        pass
+    if _live:
+        st.warning("상태판은 비었음 — 토큰판으로 캐릭터만이라도 실었습니다. "
+                   "(엔진 새로침/폴링 필요)")
+        st.dataframe([{"이름": t.get("name"), "코퍼": t.get("corp_name"),
+                       "갱신오류": t.get("refresh_error", "")} for t in _live],
+                     use_container_width=True)
+    else:
+        st.info("캐릭터 데이터 비음 — EVE 로그인하세요. 클라우드에 토큰을 영구히 "
+                "두려면 Secrets에 `tokens_b64`를 넣으세요.")
+        st.link_button("🔐 EVE 로그인 — 이 뜨는 곳의 주소로 콜백 등록 필요", login_url())
+        manual_box()
     # 속좁은 데까지 화면에 — 어디가 안 오는지 지가 말하게 한다
     try:
         _tok = {str(k): {"이름": v.get("name"), "갱신오류": v.get("refresh_error", "")}
@@ -238,7 +256,9 @@ if not chars:
     st.expander("🩺 진단 — 붙여주시면 제가 맞춵니다").json(
         {"엔진이 쥔 토큰": _tok,
          "상태 키": list(d.keys()),
-         "상태 짤줌": {k: (v if isinstance(v, (int, float, str, bool)) else f"{type(v).__name__}:{len(v) if hasattr(v, '__len__') else ''}") for k, v in d.items()}}
+         "상태 짤줌": {k: (v if isinstance(v, (int, float, str, bool)) else f"{type(v).__name__}:{len(v) if hasattr(v, '__len__') else ''}") for k, v in d.items()},
+         "서버 목옥": {"tokens 주소": id(server._tokens),
+                    "함수 주소": id(server.build_state)}}
         if isinstance(d, dict) else {"상태": str(type(d))}
     )
     st.stop()

@@ -303,9 +303,8 @@ def _load_tokens():
                 _tokens.update({int(k): v for k, v in json.load(f).items()})
         except Exception as e:
             sys.stderr.write("[warn] tokens.json 로드 실패: %s\n" % e)
-            _tokens = {}
-    else:
-        _tokens = {}
+    # 주의: 파일 없다고 메모리를 새지 말 것 — 방금 로그인한 토큰이
+    # 함께 사라진다 (클라우드에서 토큰이 실종된 정체).
 
 
 def _save_tokens():

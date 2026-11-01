@@ -38,6 +38,8 @@ CONFIG_PATH = os.path.join(BASE, "config.json")
 TOKENS_PATH = os.path.join(BASE, "tokens.json")
 NAMES_PATH = os.path.join(BASE, "esi_names.json")
 WALLET_PATH = os.path.join(BASE, "wallet_history.json")
+PENDING_PATH = os.path.join(BASE, "oauth_pending.json")
+PENDING_TTL = 600  # OAuth 로그인 시도 유효기간: 10분
 
 ESI_HOST = "https://esi.evetech.net/latest"
 SSO_AUTHORIZE = "https://login.eveonline.com/v2/oauth/authorize/"
@@ -252,7 +254,45 @@ def esi_post(path, body, token=None, params=None):
 
 _tokens = {}          # char_id(int) -> dict
 _tokens_lock = threading.Lock()
-_pending = {}         # state -> code_verifier
+_pending = {}         # state -> {"verifier": ..., "created": ...}
+
+
+def _save_pending_unlocked():
+    """Persist PKCE verifiers server-side so callback can survive app reruns."""
+    try:
+        now = time.time()
+        rows = {k: v for k, v in _pending.items()
+                if isinstance(v, dict)
+                and now - float(v.get("created", 0)) <= PENDING_TTL}
+        tmp = PENDING_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(rows, f)
+        os.replace(tmp, PENDING_PATH)
+        try:
+            os.chmod(PENDING_PATH, 0o600)
+        except OSError:
+            pass
+    except Exception as e:
+        sys.stderr.write("[warn] OAuth pending 저장 실패: %s\\n" % e)
+
+
+def _load_pending():
+    """Restore unexpired PKCE state entries during engine startup."""
+    if not os.path.exists(PENDING_PATH):
+        return
+    try:
+        with open(PENDING_PATH, encoding="utf-8") as f:
+            rows = json.load(f)
+        now = time.time()
+        with lock:
+            for state, item in (rows or {}).items():
+                if (isinstance(item, dict)
+                        and now - float(item.get("created", 0)) <= PENDING_TTL
+                        and item.get("verifier")):
+                    _pending[state] = item
+            _save_pending_unlocked()
+    except Exception as e:
+        sys.stderr.write("[warn] OAuth pending 복원 실패: %s\\n" % e)
 
 
 def _load_tokens():
@@ -313,7 +353,13 @@ def sso_login_url():
     challenge = base64.urlsafe_b64encode(
         hashlib.sha256(verifier.encode()).digest()).decode().rstrip("=")
     with lock:
-        _pending[state] = verifier
+        now = time.time()
+        for old_state, item in list(_pending.items()):
+            created = item.get("created", 0) if isinstance(item, dict) else 0
+            if now - float(created) > PENDING_TTL:
+                _pending.pop(old_state, None)
+        _pending[state] = {"verifier": verifier, "created": now}
+        _save_pending_unlocked()
     q = urllib.parse.urlencode({
         "response_type": "code",
         "redirect_uri": redirect_uri(),
@@ -354,9 +400,12 @@ def _post_form(url, form):
 
 def sso_complete(code, state):
     with lock:
-        verifier = _pending.pop(state, None)
-    if not verifier:
-        raise EsiError(0, "만료된 로그인 시도(state) 입니다. 다시 로그인하세요")
+        item = _pending.pop(state, None)
+        _save_pending_unlocked()
+    verifier = item.get("verifier") if isinstance(item, dict) else item
+    created = item.get("created", 0) if isinstance(item, dict) else time.time()
+    if not verifier or time.time() - float(created) > PENDING_TTL:
+        raise EsiError(0, "로그인 state가 만료됐습니다. EVE SSO 로그인을 다시 시작하세요.")
     tok = _post_form(SSO_TOKEN, {
         "grant_type": "authorization_code",
         "code": code,
@@ -1529,6 +1578,7 @@ class Server(ThreadingHTTPServer):
 
 def main():
     global BIND
+    _load_pending()
     _load_tokens()
     _load_names()
     _load_wallet()

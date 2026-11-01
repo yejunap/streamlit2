@@ -69,27 +69,44 @@ except Exception:
     pass
 
 # 콜백 편 — EVE가 code/state를 실어 보냈으면 같은 자리에서 받는다.
-# 주의: 같은 state로 두 번 다시 받지 말자(URL 지워지라는 소리가 안 먹힌다이)
+# 비공개 앱은 프록시 인증이 쿼리를 삼킬 수 있다 — 수동 붙여넣기를 아래에 병설한다.
+import urllib.parse as _up
+
+
+def _say(step):
+    """단계 기록 — 보안 정보(code/token/state 값)는 절대 안 남긴다."""
+    print("[sso] %s" % step)
+
+
+def do_exchange(code, state):
+    """접수한 code/state로 교환하고 글을 알려온다. 같은 state 중복 교환 금지."""
+    _say("Authorization code received")
+    if st.session_state.get("_cb_seen") == state:
+        return st.session_state.get("_cb_msg", "이미 처리된 콜백입니다")
+    st.session_state["_cb_seen"] = state
+    try:
+        _say("State verification / token exchange starting")
+        cid = server.sso_complete(code, state)
+        msg = "%s님 로그인 됨 — 토큰도 저장됨" % server._tokens[cid]["name"]
+        _say("Login completed")
+    except Exception as e:
+        msg = "SSO 완료 실패: %s" % e
+        _say("Login failed: %s" % e)
+    st.session_state["_cb_msg"] = msg
+    return msg
+
+
+_sso_msg = ""
 try:
     _q = dict(st.query_params)
 except Exception:
     _q = {}
-_sso_msg = ""
 if "code" in _q and "state" in _q:
-    st.write("콜백 들어옴 — 코드 교환 중...")
-    if st.session_state.get("_cb_seen") != _q["state"]:
-        st.session_state["_cb_seen"] = _q["state"]
-        try:
-            _cid = server.sso_complete(_q["code"], _q["state"])
-            _sso_msg = "%s님 로그인 됨" % server._tokens[_cid]["name"]
-        except Exception as e:
-            _sso_msg = "SSO 완료 실패: %s" % e
-    else:
-        _sso_msg = st.session_state.get("_cb_msg", "(이전 콜백은 처리됨)")
-    st.session_state["_cb_msg"] = _sso_msg
+    _say("Callback endpoint reached (query_params)")
+    _sso_msg = do_exchange(_q["code"], _q["state"])
     st.info(_sso_msg)
     st.markdown("### [완료 — 메인으로 가기](/)")
-    st.stop()   # 여기서 서문 닫고 — 모우기 누르면 표 판으로 갈림
+    st.stop()
 
 
 @st.cache_resource
@@ -138,6 +155,19 @@ def login_url():
         return BASE + "/sso/login"
 
 
+def manual_box():
+    """리다이렉트가 안 열렸을 때 — 쿼리를 프록시가 삼켰으면 이 길이 마지막 길."""
+    with st.expander("EVE 로그인하고 왔는데 안 뜨면 — 콜백 URL 붙여넣기"):
+        _u = st.text_input("돌아온 리다이렉트 주소 전체", key="cb_manual",
+                           placeholder="https://evemine.streamlit.app/oauth/callback?code=...&state=...")
+        if st.button("이걸로 로그인 확정") and _u:
+            _qs = _up.parse_qs(_up.urlparse(_u).query)
+            if "code" in _qs and "state" in _qs:
+                st.info(do_exchange(_qs["code"][0], _qs["state"][0]))
+            else:
+                st.error("주소에서 code/state를 못 찾았습니다 — 전체 복사가 대상이에요")
+
+
 st.title("🛰 EVE 산업 포털")
 st.caption("🔎 %s" % _secrets_note)
 if _sso_msg:
@@ -151,6 +181,7 @@ d = api("/api/state")
 if d.get("_login"):
     st.warning("EVE 로그인 후 허용 캐릭터만 접근 가능")
     st.link_button("🔐 EVE SSO 로그인", login_url())
+    manual_box()
     st.stop()
 if d.get("_err"):
     st.error("엔진 응답 없음 — %s" % d["_err"])
@@ -163,6 +194,7 @@ if not chars:
             "tokens.json 내용을 붙여 넣으세요. (이 기기엔 tokens.json이 없거나 만료됨)")
     st.link_button("🔐 EVE 로그인 — 이 뜨는 곳의 주소로 콜백 등록 필요", login_url())
     st.code("엔진 되준 key: %s" % list(d.keys()))
+    manual_box()
     st.stop()
 
 with st.sidebar:

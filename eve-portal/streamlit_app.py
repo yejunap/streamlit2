@@ -24,20 +24,30 @@ import server  # 같은 자리의 복사 — __main__ 가드라 가져오기 안
 CFG = json.load(open(os.path.join(HERE, "config.json"), encoding="utf-8"))
 BASE = "http://127.0.0.1:%s" % CFG.get("port", 8421)
 
-# Streamit Cloud — 설정 → Secrets에 tokens_json으로 tokens.json 내용을 붙인다.
-# (클라우드엔 SSO 콜백받을 바깥 창이 없어서 로그인은 여기로 대신한다.)
+# Streamit Cloud — 설정 → Secrets에 **tokens_b64**로 tokens.json의 base64를 넣는다.
+# (TOML 따영블에서 중첩 중괄호가 깨진다 —그래서 중괄호 없는 base64를 쓴다.
+#  tokens_json(plain)도 호환되나 ''' 안에서 }가 새면 안니니 b64를 권한다.)
 _secrets_note = ""
 try:
-    _tj = st.secrets.get("tokens_json")
+    import base64 as _b64
+    _tj = None
+    if "tokens_b64" in st.secrets:
+        _tj = _b64.b64decode(st.secrets["tokens_b64"]).decode()
+        _secrets_note = "시크릿 b64 수신 — %d바이트" % len(_tj)
+    elif "tokens_json" in st.secrets:
+        _tj = st.secrets["tokens_json"]
+        _secrets_note = "시크릿 json 수신"
     if _tj:
-        _tj = _tj if isinstance(_tj, str) else json.dumps(_tj)
+        if not isinstance(_tj, str):
+            _tj = json.dumps(_tj)
+        json.loads(_tj)   # 목숨 없는 판 걸러내기
         with open(os.path.join(HERE, "tokens.json"), "w", encoding="utf-8") as f:
             f.write(_tj)
-        _secrets_note = "시크릿 수신 — tokens.json %d바이트 반영" % len(_tj)
+        _secrets_note += " — 토큰판 갱신"
     else:
-        _secrets_note = "시크릿에 tokens_json 없음"
+        _secrets_note = "시크릿 없음 — b64 또는 json 키를 넣으세요"
 except Exception as e:
-    _secrets_note = "시크릿 로딩 실패: %s" % e
+    _secrets_note = "시크릿 처리 실패: %s" % e
 
 
 @st.cache_resource

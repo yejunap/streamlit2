@@ -137,6 +137,9 @@ def backend():
 
 def api(path):
     try:
+        if path == "/api/state":
+            # 세션 벽은 남의 집 사정 — 한집(같은 프로세스)이니 바로 끈다
+            return server.build_state()
         with urllib.request.urlopen(BASE + path, timeout=15) as r:
             return json.loads(r.read().decode())
     except urllib.error.HTTPError as e:

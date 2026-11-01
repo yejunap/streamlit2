@@ -49,6 +49,38 @@ try:
 except Exception as e:
     _secrets_note = "시크릿 처리 실패: %s" % e
 
+# 클라우드 SSO — 콜백注册地址를 시크릿이나 앱 자체 주소로 엔진에 뒤입힌다.
+# EVE 개발자 포털에 등록한 콜백: https://<앱주소>/oauth/callback
+try:
+    _rb = st.secrets.get("redirect_base")
+    if not _rb:
+        _h = st.context.headers.get("host") or ""
+        if "streamlit.app" in _h:
+            _rb = "https://" + _h
+    if _rb:
+        server.CFG["redirect_base"] = _rb
+except Exception:
+    pass
+
+# 콜백 편 — EVE가 code/state를 실어 보냈으면 같은 자리에서 받는다
+try:
+    _q = dict(st.query_params)
+except Exception:
+    _q = {}
+_sso_msg = ""
+if "code" in _q and "state" in _q:
+    try:
+        st.query_params.clear()
+    except Exception:
+        pass
+    try:
+        _cid = server.sso_complete(_q["code"], _q["state"])
+        _sso_msg = "%s 님 로그인 됨" % server._tokens[_cid]["name"]
+        time.sleep(4)   # 엔진이 첫 고임을 돌게 조금 기다림
+    except Exception as e:
+        _sso_msg = "SSO 완료 실패: %s" % e
+    st.rerun()
+
 
 @st.cache_resource
 def backend():
@@ -88,8 +120,18 @@ def api(path):
         return {"_err": str(e)}
 
 
+def login_url():
+    """EVE 등록 주소로 만든 로그인 URL — 엔진이 있으면 PKCE까지 산다."""
+    try:
+        return server.sso_login_url()
+    except Exception:
+        return BASE + "/sso/login"
+
+
 st.title("🛰 EVE 산업 포털")
 st.caption("🔎 %s" % _secrets_note)
+if _sso_msg:
+    st.info(_sso_msg)
 ok, why = backend()
 if not ok:
     st.error("엔진 없음 — %s" % why)
@@ -98,7 +140,7 @@ if not ok:
 d = api("/api/state")
 if d.get("_login"):
     st.warning("EVE 로그인 후 허용 캐릭터만 접근 가능")
-    st.link_button("🔐 EVE SSO 로그인", BASE + "/sso/login")
+    st.link_button("🔐 EVE SSO 로그인", login_url())
     st.stop()
 if d.get("_err"):
     st.error("엔진 응답 없음 — %s" % d["_err"])
@@ -109,7 +151,7 @@ if not chars:
     st.info("캐릭터 데이터 비음 — 로컬이면 포털 창에서 EVE SSO 로그인, "
             "**클라우드면 설정(Sidebar ⋮ → Settings → Secrets)에 `tokens_json`**으로 "
             "tokens.json 내용을 붙여 넣으세요. (이 기기엔 tokens.json이 없거나 만료됨)")
-    st.link_button("🔐 포털에서 로그인 (로컬일 때만 됨)", BASE + "/sso/login")
+    st.link_button("🔐 EVE 로그인 — 이 뜨는 곳의 주소로 콜백 등록 필요", login_url())
     st.code("엔진 되준 key: %s" % list(d.keys()))
     st.stop()
 

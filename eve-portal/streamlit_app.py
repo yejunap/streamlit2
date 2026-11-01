@@ -26,13 +26,18 @@ BASE = "http://127.0.0.1:%s" % CFG.get("port", 8421)
 
 # Streamit Cloud — 설정 → Secrets에 tokens_json으로 tokens.json 내용을 붙인다.
 # (클라우드엔 SSO 콜백받을 바깥 창이 없어서 로그인은 여기로 대신한다.)
+_secrets_note = ""
 try:
     _tj = st.secrets.get("tokens_json")
     if _tj:
+        _tj = _tj if isinstance(_tj, str) else json.dumps(_tj)
         with open(os.path.join(HERE, "tokens.json"), "w", encoding="utf-8") as f:
-            f.write(_tj if isinstance(_tj, str) else json.dumps(_tj))
-except Exception:
-    pass
+            f.write(_tj)
+        _secrets_note = "시크릿 수신 — tokens.json %d바이트 반영" % len(_tj)
+    else:
+        _secrets_note = "시크릿에 tokens_json 없음"
+except Exception as e:
+    _secrets_note = "시크릿 로딩 실패: %s" % e
 
 
 @st.cache_resource
@@ -74,6 +79,7 @@ def api(path):
 
 
 st.title("🛰 EVE 산업 포털")
+st.caption("🔎 %s" % _secrets_note)
 ok, why = backend()
 if not ok:
     st.error("엔진 없음 — %s" % why)
@@ -94,6 +100,7 @@ if not chars:
             "**클라우드면 설정(Sidebar ⋮ → Settings → Secrets)에 `tokens_json`**으로 "
             "tokens.json 내용을 붙여 넣으세요. (이 기기엔 tokens.json이 없거나 만료됨)")
     st.link_button("🔐 포털에서 로그인 (로컬일 때만 됨)", BASE + "/sso/login")
+    st.code("엔진 되준 key: %s" % list(d.keys()))
     st.stop()
 
 with st.sidebar:

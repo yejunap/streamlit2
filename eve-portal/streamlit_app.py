@@ -88,7 +88,7 @@ if "code" in _q and "state" in _q:
         _sso_msg = st.session_state.get("_cb_msg", "(이전 콜백은 처리됨)")
     st.session_state["_cb_msg"] = _sso_msg
     st.info(_sso_msg)
-    st.markdown("### [완료 — 모우기로 가기](/)")
+    st.markdown("### [완료 — 메인으로 가기](/)")
     st.stop()   # 여기서 서문 닫고 — 모우기 누르면 표 판으로 갈림
 
 

@@ -162,7 +162,15 @@ if _q.get("code") and _q.get("state"):
 def api(path):
     try:
         if path == "/api/state":
-            # 세션 벽은 남의 집 사정 — 한집(같은 프로세스)이니 바로 끈다
+            # 토큰판은 방금 로그인도 디스크에 함께 적는다 — 메모리에 합쳐 입힌다.
+            # (_load_tokens는 파일 없으면 통째 비우니 쓰지 말 것 — set병만)
+            _tp = os.path.join(HERE, "tokens.json")
+            if os.path.exists(_tp):
+                with open(_tp, encoding="utf-8") as f:
+                    _disk = {int(k): v for k, v in json.load(f).items()}
+                with server._tokens_lock:
+                    for _cid, _t in _disk.items():
+                        server._tokens.setdefault(_cid, _t)
             return server.build_state()
         with urllib.request.urlopen(BASE + path, timeout=15) as r:
             return json.loads(r.read().decode())

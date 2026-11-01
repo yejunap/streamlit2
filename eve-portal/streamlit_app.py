@@ -40,10 +40,16 @@ try:
     if _tj:
         if not isinstance(_tj, str):
             _tj = json.dumps(_tj)
-        json.loads(_tj)   # 목숨 없는 판 걸러내기
-        with open(os.path.join(HERE, "tokens.json"), "w", encoding="utf-8") as f:
-            f.write(_tj)
-        _secrets_note += " — 토큰판 갱신"
+        json.loads(_tj)   # 시크릿 JSON 형식 검증
+        _token_path = os.path.join(HERE, "tokens.json")
+        # Secrets는 최초 부팅 때만 초기 데이터로 사용한다.
+        # 매 rerun마다 덮어쓰면 SSO 직후 저장한 새 캐릭터 토큰이 사라진다.
+        if not os.path.exists(_token_path):
+            with open(_token_path, "w", encoding="utf-8") as f:
+                f.write(_tj)
+            _secrets_note += " — 초기 토큰 복원"
+        else:
+            _secrets_note += " — 기존 토큰 파일 유지"
     else:
         _secrets_note = "시크릿 없음 — b64 또는 json 키를 넣으세요"
 except Exception as e:

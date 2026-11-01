@@ -68,26 +68,25 @@ try:
 except Exception:
     pass
 
-# 콜백 편 — EVE가 code/state를 실어 보냈으면 같은 자리에서 받는다.
-# 비공개 앱은 프록시 인증이 쿼리를 삼킬 수 있다 — 수동 붙여넣기를 아래에 병설한다.
+# OAuth callback helpers. EVE SSO returns to /oauth/callback with code/state.
 import urllib.parse as _up
 
 
 def _say(step):
-    """단계 기록 — 보안 정보(code/token/state 값)는 절대 안 남긴다."""
+    """Never log authorization codes, tokens, client secrets, or state values."""
     print("[sso] %s" % step)
 
 
 def do_exchange(code, state):
-    """접수한 code/state로 교환하고 글을 알려온다. 같은 state 중복 교환 금지."""
+    """Exchange a one-time authorization code; mark only successful exchanges."""
     _say("Authorization code received")
     if st.session_state.get("_cb_seen") == state:
         return st.session_state.get("_cb_msg", "이미 처리된 콜백입니다")
-    st.session_state["_cb_seen"] = state
     try:
-        _say("State verification / token exchange starting")
+        _say("Token exchange starting")
         cid = server.sso_complete(code, state)
-        msg = "%s님 로그인 됨 — 토큰도 저장됨" % server._tokens[cid]["name"]
+        msg = "%s님 로그인 완료 — 토큰 저장됨" % server._tokens[cid]["name"]
+        st.session_state["_cb_seen"] = state
         _say("Login completed")
     except Exception as e:
         msg = "SSO 완료 실패: %s" % e
@@ -97,16 +96,6 @@ def do_exchange(code, state):
 
 
 _sso_msg = ""
-try:
-    _q = dict(st.query_params)
-except Exception:
-    _q = {}
-if "code" in _q and "state" in _q:
-    _say("Callback endpoint reached (query_params)")
-    _sso_msg = do_exchange(_q["code"], _q["state"])
-    st.info(_sso_msg)
-    st.markdown("### [완료 — 메인으로 가기](/)")
-    st.stop()
 
 
 @st.cache_resource
@@ -133,6 +122,35 @@ def backend():
                 return False, errs[0]
             time.sleep(1)
     return False, "엔진 안 열림 (25초 대기)"
+
+
+# Start the engine before handling callback so it restores pending PKCE state.
+_ok, _why = backend()
+if not _ok:
+    st.error("SSO callback 엔진 시작 실패: %s" % _why)
+    st.stop()
+
+try:
+    _q = dict(st.query_params)
+except Exception:
+    _q = {}
+
+if "error" in _q:
+    st.error("EVE SSO 오류: %s" % _q.get("error_description", _q["error"]))
+    st.stop()
+
+if _q.get("code") and _q.get("state"):
+    _say("Callback endpoint reached")
+    _sso_msg = do_exchange(_q["code"], _q["state"])
+    if _sso_msg.startswith("SSO 완료 실패"):
+        st.error(_sso_msg)
+        st.link_button("EVE SSO 다시 로그인", server.sso_login_url())
+    else:
+        st.success(_sso_msg)
+        st.markdown('<meta http-equiv="refresh" content="1;url=/" />',
+                    unsafe_allow_html=True)
+        st.link_button("포털로 이동", "/")
+    st.stop()
 
 
 def api(path):
